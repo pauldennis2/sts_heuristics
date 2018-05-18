@@ -37,19 +37,19 @@ public class ClimbingGame {
 	static int OUTPUT_LEVEL = 0;
 	static boolean init = false;
 	
+	private AdaptiveStrategy strategy;
+	
 	public ClimbingGame () {
 		if (!init) {
 			staticInit();
 		}
 		hero = new Hero();
 		level = 1;
-		hero.level = level;
 	}
 	
 	public ClimbingGame (AdaptiveStrategy strategy) {
 		this();
-		hero.strategy = strategy;
-		strategy.hero = hero;
+		strategy.setHero(hero);
 	}
 	
 	public static void staticInit () {
@@ -62,24 +62,26 @@ public class ClimbingGame {
 		newCardOptions.put("heal", new Card(5, HEAL, 1));
 		newCardOptions.put("healBlock", new Card(4, HEAL_AND_BLOCK, 1));
 		Card exhaust = new Card (10, ATTACK, 1);
-		exhaust.isExhaust = true;
+		exhaust.setExhaust(true);
 		newCardOptions.put("strikeExhaust", exhaust);
 		
 		advUpgradeOptions = new HashMap<>();
 		//Remove the least powerful card from the deck
 		advUpgradeOptions.put("removeCard", hero -> {
-			Collections.sort(hero.deck);
-			Card removed = hero.deck.get(hero.deck.size() - 1);
+			List<Card> deck = hero.getDeck();
+			Collections.sort(deck);
+			Card removed = deck.get(deck.size() - 1);
 			//Last card should be the least powerful
 			if (OUTPUT_LEVEL >= 2) {
 				System.out.println("\t+++Removed " + removed);
 			}
+			hero.removeCard(removed);
 		});
 		//Upgrade the most powerful un-upgraded card
 		advUpgradeOptions.put("upgradeCard", hero -> {
 			//This code is uglier than it should be because I'm not comfortable enough with ref/value and copying
-			List<Card> deck = new ArrayList<>(hero.deck);
-			deck.removeIf(card -> card.upgraded);
+			List<Card> deck = new ArrayList<>(hero.getDeck());
+			deck.removeIf(Card::isUpgraded);
 			if (deck.size() == 0) {
 				if (OUTPUT_LEVEL >= 2) {
 					System.out.println("All cards already upgraded.");
@@ -88,12 +90,12 @@ public class ClimbingGame {
 				Collections.sort(deck);
 				//First card is the highest level non-upgraded card
 				Card upg = deck.get(0);
-				boolean success = hero.deck.remove(upg);
+				boolean success = hero.removeCard(upg);
 				if (!success) {
 					throw new AssertionError("Failure temporarily removing card");
 				}
 				upg.upgrade();
-				hero.deck.add(upg);
+				hero.addCard(upg);
 				if (OUTPUT_LEVEL >= 2) {
 					System.out.println("\t+++Upgraded " + upg);
 				}
@@ -115,7 +117,7 @@ public class ClimbingGame {
 				System.out.println("\tChoices: " + availableUpgradeOptions.keySet());
 			}
 			
-			List<String> preferences = hero.strategy.getCardPrefs();
+			List<String> preferences = hero.getStrategy().getCardPrefs();
 			String topPref = preferences.get(0);
 			Card chosen;
 			if (availableUpgradeOptions.containsKey(topPref)) {
@@ -125,18 +127,17 @@ public class ClimbingGame {
 				//The second choice must be
 				chosen = availableUpgradeOptions.get(preferences.get(1));
 			}
-			hero.deck.add(chosen);
+			hero.addCard(chosen);
 			if (OUTPUT_LEVEL >= 2) {
 				System.out.println("\t+++Added " + chosen + " to deck.");
 			}
-			if (chosen.level > 1) {
+			if (chosen.getLevel() > 1) {
 				throw new AssertionError("New card cannot be already upgraded.");
 			}
 		});
 		//Increase the hero's max hitpoints
 		advUpgradeOptions.put("maxHp", hero -> {
-			hero.maxHealth += 3;
-			hero.currentHealth += 3;
+			hero.increaseMaxHp(3);
 			if (OUTPUT_LEVEL >= 2) {
 				System.out.println("\t+++Increased maxHp by 3");
 			}
@@ -460,16 +461,16 @@ public class ClimbingGame {
 		boolean keepGoing = true;
 		while (keepGoing) {
 			if (OUTPUT_LEVEL >= 2) {
-				System.out.println("Level " + level + "\tHealth " + hero.currentHealth + "/" + hero.maxHealth);
+				System.out.println("Level " + level + "\tHealth " + hero.getCurrentHealth() + "/" + hero.getMaxHealth());
 			}
 			monster = new Monster(level);
-			drawPile = new ArrayList<>(hero.deck);
+			drawPile = new ArrayList<>(hero.getDeck());
 			discardPile = new ArrayList<>();
 			Collections.shuffle(drawPile);
 			
 			//Combat
 			while (true) {
-				hero.blockHp = 0;
+				hero.setBlockHp(0);
 				//Do two hero attacks
 				doCardEffects(drawCard());
 				doCardEffects(drawCard());
@@ -482,7 +483,7 @@ public class ClimbingGame {
 				if (OUTPUT_LEVEL >= 2) {
 					System.out.println("\t-----");
 				}
-				if (monster.health <= 0) {
+				if (monster.getHealth() <= 0) {
 					if (OUTPUT_LEVEL >= 2) {
 						System.out.println("\tMonster defeated.");
 					}
@@ -490,21 +491,21 @@ public class ClimbingGame {
 				}
 				
 				//Do monster attack
-				hero.takeDamage(monster.damage);
-				if (hero.currentHealth <= 0) {
+				hero.takeDamage(monster.getDamage());
+				if (hero.getCurrentHealth() <= 0) {
 					if (OUTPUT_LEVEL >= 1) {
 						System.out.println("Hero died on level " + level + ".");
 					}
 					keepGoing = false;
 					//Strategy strategyString = hero.strategy.toString();
 					List<Integer> levelsAttained;
-					if (strategyToLevelsAttainedMap.containsKey(hero.strategy)) {
-						levelsAttained = strategyToLevelsAttainedMap.get(hero.strategy);
+					if (strategyToLevelsAttainedMap.containsKey(hero.getStrategy())) {
+						levelsAttained = strategyToLevelsAttainedMap.get(hero.getStrategy());
 					} else {
 						levelsAttained = new ArrayList<>();
 					}
 					levelsAttained.add(level);
-					strategyToLevelsAttainedMap.put(hero.strategy, levelsAttained);
+					strategyToLevelsAttainedMap.put(hero.getStrategy(), levelsAttained);
 					break;
 				}
 			}
@@ -516,7 +517,6 @@ public class ClimbingGame {
 				
 				//Add a new card
 				level++;
-				hero.level = level;
 				
 				makeUpgradeDecision();
 			}
@@ -524,7 +524,7 @@ public class ClimbingGame {
 	}
 	
 	public void makeUpgradeDecision () {
-		List<String> highLevelPrefs = hero.strategy.getHighLevelPrefs();
+		List<String> highLevelPrefs = hero.getStrategy().getHighLevelPrefs();
 		List<String> advUpgradeOptionNames = advUpgradeOptions.keySet().stream().collect(Collectors.toList());
 		Collections.shuffle(advUpgradeOptionNames);
 		//Take out two options, leaving 2
@@ -550,16 +550,16 @@ public class ClimbingGame {
 			System.out.println("\tDrew and played: " + card);
 		}
 		//Execute card properties. These are NOT mutually exclusive
-		if (card.isAttack) {
-			monster.health -= card.magnitude;
+		if (card.isAttack()) {
+			monster.takeDamage(card.getMagnitude());
 		}
-		if (card.isBlock) {
-			hero.blockHp += card.magnitude;
+		if (card.isBlock()) {
+			hero.addBlockHp(card.getMagnitude());
 		}
-		if (card.isHeal) {
-			hero.heal(card.magnitude);
+		if (card.isHeal()) {
+			hero.heal(card.getMagnitude());
 		}
-		if (!card.isExhaust) { //If NOT exhaust
+		if (!card.isExhaust()) { //If NOT exhaust
 			discardPile.add(card);
 		}
 	}

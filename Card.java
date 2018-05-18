@@ -6,19 +6,19 @@ package sts_heuristics;
 
 public class Card implements Comparable<Card>{
 	
-	int magnitude;
-	boolean isAttack;
-	boolean isBlock;
-	boolean isHeal;
-	boolean isExhaust;
+	private int magnitude;
+	private boolean isAttack;
+	private boolean isBlock;
+	private boolean isHeal;
+	private boolean isExhaust;
 	
-	boolean upgraded;
+	private boolean upgraded;
 	
 	//Represents the level of a card
 	//0 - Basic starter card
 	//1 - Nonstarter card or upgraded starter
 	//2 - Upgraded non-starter card
-	int level;
+	private int level;
 	
 	public Card (Card copy) {
 		this.magnitude = copy.magnitude;
@@ -105,5 +105,36 @@ public class Card implements Comparable<Card>{
 		response += ", Magnitude: " + magnitude;
 		return response;
 	}
+	
+	public boolean isAttack () {
+		return isAttack;
+	}
 
+	public boolean isBlock () {
+		return isBlock;
+	}
+	
+	public boolean isHeal () {
+		return isHeal;
+	}
+	
+	public boolean isExhaust () {
+		return isExhaust;
+	}
+	
+	public void setExhaust (boolean isExhaust) {
+		this.isExhaust = isExhaust;
+	}
+	
+	public boolean isUpgraded () {
+		return upgraded;
+	}
+	
+	public int getMagnitude () {
+		return magnitude;
+	}
+	
+	public int getLevel () {
+		return level;
+	}
 }

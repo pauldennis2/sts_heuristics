@@ -22,21 +22,21 @@ public class AdaptiveStrategy extends StrategyBase {
 
 	//A Map between Conditions (which make dynamic decisions based on game state)
 	//and List<String> representing how we will change our preferences if the condition is true
-	Map<Condition, List<String>> conditionsAndResultsMap;	
+	private Map<Condition, List<String>> conditionsAndResultsMap;	
 	
-	transient Hero hero;
-	transient AdaptiveStrategy old;
+	private transient Hero hero;
+	private transient AdaptiveStrategy old;
 	
-	double improvement;
-	boolean isDiff = false;
-	String name;
+	private double improvement;
+	private boolean isDiff = false;
+	private String name;
 	
-	String dadsName;
-	String momsName;
+	private String dadsName;
+	private String momsName;
 	
 	//List of 100 3-6 letter words that can be combined to make strategy names.
 	//Like "peruse-dragon98". 1,000,000 possibilities
-	final static List<String> NAME_FRAGMENTS = Arrays.asList("fierce", "strong", "silly", "react", "strike", "deny",
+	public final static List<String> NAME_FRAGMENTS = Arrays.asList("fierce", "strong", "silly", "react", "strike", "deny",
 			"speak", "adapt", "seek", "frothy", "shake", "stir", "heal", "stompy", "newly", "prime", "singe", "sear",
 			"strife", "happy", "kooky", "strange", "finish", "demand", "oblong", "peruse", "rogue",
 			"copy", "joyful", "white", "green", "guard", "dragon", "delete", "verify", "curse", "grace",
@@ -47,8 +47,8 @@ public class AdaptiveStrategy extends StrategyBase {
 			"egg", "kernel", "panic", "feast", "turtle", "tale", "unwind", "relax", "spear", "relic", "shadow", "genie",
 			"titan", "naga", "imp", "angel", "toad", "sage", "short", "flash");
 	
-	final static List<String> HLPS = Arrays.asList("addCard", "upgradeCard", "removeCard", "maxHp");
-	final static List<String> CARDS = Arrays.asList("heal", "strikeDefend", "strikeExhaust", "healBlock");
+	public final static List<String> HLPS = Arrays.asList("addCard", "upgradeCard", "removeCard", "maxHp");
+	public final static List<String> CARDS = Arrays.asList("heal", "strikeDefend", "strikeExhaust", "healBlock");
 	
 	//For the difference function
 	private AdaptiveStrategy () {
@@ -607,6 +607,10 @@ public class AdaptiveStrategy extends StrategyBase {
 			}
 		}
 		return new StrategyGroupReport(cardPrefOccurances, hlpOccurances);
+	}
+	
+	public void setHero (Hero hero) {
+		this.hero = hero;
 	}
 	
 	

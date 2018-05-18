@@ -11,14 +11,11 @@ import static sts_heuristics.EffectType.*;
 
 public class Hero {
 	
-	List<Card> deck;
-	int currentHealth;
-	int maxHealth;
-	int blockHp;
-	
-	AdaptiveStrategy strategy;
-	
-	int level;
+	private List<Card> deck;
+	private int currentHealth;
+	private int maxHealth;
+	private int blockHp;
+	private AdaptiveStrategy strategy;
 	
 	public Hero () {
 		maxHealth = 40;
@@ -33,8 +30,6 @@ public class Hero {
 		deck.add(new Card(5, BLOCK));
 		deck.add(new Card(5, BLOCK));
 		deck.add(new Card(5, BLOCK));
-		
-		strategy = new AdaptiveStrategy(this);
 	}
 	
 	public Hero (AdaptiveStrategy strategy) {
@@ -60,5 +55,46 @@ public class Hero {
 		if (ClimbingGame.OUTPUT_LEVEL >= 2) {
 			System.out.println("\tHealed " + amount);
 		}
+	}
+	
+	public void increaseMaxHp (int amount) {
+		currentHealth += amount;
+		maxHealth += amount;
+	}
+	
+	public int getCurrentHealth () {
+		return currentHealth;
+	}
+	
+	public int getMaxHealth () {
+		return maxHealth;
+	}
+	
+	public int getBlockHp () {
+		return blockHp;
+	}
+	
+	public List<Card> getDeck () {
+		return deck;
+	}
+	
+	public void addCard (Card card) {
+		deck.add(card);
+	}
+	
+	public boolean removeCard (Card card) {
+		return deck.remove(card);
+	}
+	
+	public AdaptiveStrategy getStrategy () {
+		return strategy;
+	}
+	
+	public void setBlockHp (int amount) {
+		blockHp = amount;
+	}
+	
+	public void addBlockHp (int amount) {
+		blockHp += amount;
 	}
 }
