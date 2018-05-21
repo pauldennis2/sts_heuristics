@@ -5,6 +5,7 @@
 package sts_heuristics;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class DeckReport {
 	
@@ -24,40 +25,79 @@ public class DeckReport {
 	public double starterCardsUnupgraded;
 	public double unupgradedNonStarterCards;
 	
+	//Power fields
+	public double numPowers;
+	public double numRibbons;
+	public double powerStaticStr;
+	public double powerStaticDex;
+	public double powerStrPerTurn;
+	public double powerDexPerTurn;
+	public double powerBlockPerTurn;
+	public double powerHealPerTurn;
+	
 	public DeckReport (Hero hero) {
-		this.level = hero.level;
 		this.hero = hero;
-		maxHp = hero.maxHealth;
-		currentHp = hero.currentHealth;
+		maxHp = hero.getMaxHealth();
+		currentHp = hero.getCurrentHealth();
 		analyzeDeck();
 	}
 
 	public void analyzeDeck () {
-		List<Card> deck = hero.deck;
+		List<Card> deck = hero.getDeck();
 		numCards = deck.size();
 		int healAmount = deck.stream()
-				.filter(card -> card.isHeal)
-				.mapToInt(card -> card.magnitude)
+				.filter(Card::isHeal)
+				.mapToInt(Card::getMagnitude)
 				.sum();
 		int blockAmount = deck.stream()
-				.filter(card -> card.isBlock)
-				.mapToInt(card -> card.magnitude)
+				.filter(Card::isBlock)
+				.mapToInt(Card::getMagnitude)
 				.sum();
 		int damageAmount = deck.stream()
-				.filter(card -> card.isAttack)
-				.mapToInt(card -> card.magnitude)
+				.filter(Card::isAttack)
+				.mapToInt(Card::getMagnitude)
 				.sum();
 		nonUpgradedCards = deck.stream()
-				.filter(card -> !card.upgraded)
+				.filter(card -> !card.isUpgraded())
 				.count();
 		starterCardsUnupgraded = deck.stream()
-				.filter(card -> card.level == 0)
+				.filter(card -> card.getLevel() == 0)
 				.count();
 		unupgradedNonStarterCards = nonUpgradedCards - starterCardsUnupgraded;
 		
 		averageBlockPerCard = (double) blockAmount / (double) numCards;
 		averageHealPerCard = (double) healAmount / (double) numCards;
 		averageDamagePerCard = (double) damageAmount / (double) numCards;
+		
+		List<Card> powers = deck.stream().filter(Card::isPower).collect(Collectors.toList());
+		numPowers = powers.size();
+		List<Card> statIncreasePowers = powers.stream().filter(Card::isStatIncrease).collect(Collectors.toList());
+		for (Card card : statIncreasePowers) {
+			if (card.isStrengthIncrease()) {
+				if (card.isPerTurnStatIncreasePower()) {
+					powerStrPerTurn += card.getMagnitude();
+				} else {
+					powerStaticStr += card.getMagnitude();
+				}
+			} else {
+				if (card.isPerTurnStatIncreasePower()) {
+					powerDexPerTurn += card.getMagnitude();
+				} else {
+					powerStaticDex += card.getMagnitude();
+				}
+			}
+		}
+		for (Card card : powers) {
+			if (card.isStatusImmunity()) {
+				numRibbons++;
+			}
+			if (card.getEffectType() == EffectType.HEAL_PER_TURN) {
+				powerHealPerTurn += card.getMagnitude();
+			}
+			if (card.getEffectType() == EffectType.BLOCK_PER_TURN) {
+				powerBlockPerTurn += card.getMagnitude();
+			}
+		}
 		
 		if (debug) {
 			System.out.println("Analyzed this deck with " + numCards + " cards:");

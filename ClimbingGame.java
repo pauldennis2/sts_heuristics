@@ -4,6 +4,9 @@
  */
 package sts_heuristics;
 
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -16,12 +19,12 @@ import static sts_heuristics.EffectType.*;
 
 public class ClimbingGame {
 	
-	Hero hero;
-	Monster monster;
-	int level;
+	private Hero hero;
+	private Monster monster;
+	private int level;
 	
-	List<Card> drawPile;
-	List<Card> discardPile;
+	private List<Card> drawPile;
+	private List<Card> discardPile;
 	
 	static Map<String, Card> newCardOptions;
 	static Map<String, HeroAction> advUpgradeOptions;
@@ -34,10 +37,8 @@ public class ClimbingGame {
 	//0 - used for highest level output
 	//1 - used for things that occur 1-2 times per game
 	//2 - used for things that occur timers per round
-	static int OUTPUT_LEVEL = 0;
-	static boolean init = false;
-	
-	private AdaptiveStrategy strategy;
+	public static int OUTPUT_LEVEL = 4;
+	private static boolean init = false;
 	
 	public ClimbingGame () {
 		if (!init) {
@@ -50,6 +51,10 @@ public class ClimbingGame {
 	public ClimbingGame (AdaptiveStrategy strategy) {
 		this();
 		strategy.setHero(hero);
+		hero.setStrategy(strategy);
+		if (OUTPUT_LEVEL >= 1) {
+			System.out.println("Starting new game with this strategy: " + strategy);
+		}
 	}
 	
 	public static void staticInit () {
@@ -72,10 +77,20 @@ public class ClimbingGame {
 			Collections.sort(deck);
 			Card removed = deck.get(deck.size() - 1);
 			//Last card should be the least powerful
-			if (OUTPUT_LEVEL >= 2) {
-				System.out.println("\t+++Removed " + removed);
+			
+			int nonExhaustCards = (int) deck.stream()
+					.filter(card -> !card.isExhaust())
+					.count();
+			if (removed.isExhaust() || nonExhaustCards >= 2) {
+				hero.removeCard(removed);
+				if (OUTPUT_LEVEL >= 2) {
+					System.out.println("\t+++Removed " + removed);
+				}
+			} else {
+				if (OUTPUT_LEVEL >= 2) {
+					System.out.println("\tCannot allow removal of last non-exhaust card. Did not remove: " + removed);
+				}
 			}
-			hero.removeCard(removed);
 		});
 		//Upgrade the most powerful un-upgraded card
 		advUpgradeOptions.put("upgradeCard", hero -> {
@@ -146,7 +161,15 @@ public class ClimbingGame {
 	}
 	
 	public static void main(String[] args) {
+		/*
 		staticInit();
+		breedingMethod1();
+		hallOfFame.close();
+		*/
+		new ClimbingGame(new AdaptiveStrategy(new Hero())).playGame();
+	}
+	
+	public static void breedingMethod1 () {
 		seedHallOfFame();
 		breedStrategies(hallOfFame.getPotentials(), 3);
 		breedStrategies(hallOfFame.getFamers(), 50);
@@ -154,7 +177,43 @@ public class ClimbingGame {
 		deepBreedStrategies(hallOfFame.getPotentials(), 2);
 		deepBreedStrategies(hallOfFame.getFamers(), 10);
 		crossBreedStrategies(hallOfFame.getFamers(), 3);
-		hallOfFame.close();
+	}
+
+	//This method takes the Hall of Fame strategies, runs them 500 times each,
+	//sums up their level attained counts (i.e. "Died on level 15 3 times, died on level 16 2 times"),
+	//and writes this info to data/gritty/<currentTimeMillis>/<strategyName>.csv
+	//for use in excel spreadsheet and the like
+	public static void getGrittyHallOfFameData () {
+		//TODO: test fun new functionality!
+		strategyToLevelsAttainedMap = new HashMap<>();
+		//Map<AdaptiveStrategy, Map<Integer, Integer>> strategiesToCountMaps = new HashMap<>();
+		String directory = "data/gritty/" + System.currentTimeMillis();
+		new File(directory).mkdirs();
+		for (AdaptiveStrategy strategy : hallOfFame.getFamers()) {
+			for (int i = 0; i < 500; i++) {
+				new ClimbingGame(strategy).playGame();
+			}
+			List<Integer> levelsAttained = strategyToLevelsAttainedMap.get(strategy);
+			Map<Integer, Integer> levelsAttainedCountMap = new HashMap<>();
+			for (Integer level : levelsAttained) {
+				if (levelsAttainedCountMap.containsKey(level)) {
+					levelsAttainedCountMap.put(level, levelsAttainedCountMap.get(level) + 1);
+				} else {
+					levelsAttainedCountMap.put(level, 1);
+				}
+			}
+			String fileName = directory + "/" + strategy.getName() + ".csv";
+			try (FileWriter fileWriter = new FileWriter(new File(fileName))){
+				List<Integer> levelsAttainedKeys = levelsAttainedCountMap.keySet().stream().collect(Collectors.toList());
+				Collections.sort(levelsAttainedKeys);
+				for (Integer level : levelsAttainedKeys) {
+					fileWriter.write(level + ", " + levelsAttainedCountMap.get(level));
+				}
+				fileWriter.close();
+			} catch (IOException ex) {
+				System.err.println("!!Problem writing to file: " + fileName);
+			}
+		}
 	}
 	
 	//Create 500 new strategies and run them 500 times each	
@@ -175,7 +234,7 @@ public class ClimbingGame {
 		List<AdaptiveStrategy> children = new ArrayList<>();
 		for (AdaptiveStrategy strategy : strategies) {
 			for (int i = 0; i < numChildren; i++) {
-				children.add(new AdaptiveStrategy(strategy));
+				children.add(strategy.tweak());
 			}
 		}
 		runStrategies(children, 500);
@@ -191,10 +250,7 @@ public class ClimbingGame {
 		List<AdaptiveStrategy> children = new ArrayList<>();
 		for (AdaptiveStrategy strategy : strategies) {
 			for (int i = 0; i < numGreatGrandchildren; i++) {
-				AdaptiveStrategy child = new AdaptiveStrategy(strategy);
-				AdaptiveStrategy grandChild = new AdaptiveStrategy(child);
-				AdaptiveStrategy grGrandChild = new AdaptiveStrategy(grandChild);
-				AdaptiveStrategy grGrGrandChild = new AdaptiveStrategy(grGrandChild);
+				AdaptiveStrategy grGrGrandChild = strategy.tweak().tweak().tweak().tweak();
 				children.add(grGrGrandChild);
 			}
 		}
@@ -289,6 +345,7 @@ public class ClimbingGame {
 		System.out.println("Average attainment = " + av);
 	}
 	
+	@Deprecated
 	public static void geneticsTest () {
 		//Count: 5000
 		for (int i = 0; i < 5000; i++) {
@@ -308,7 +365,7 @@ public class ClimbingGame {
 			List<AdaptiveStrategy> tweakedStrats = new ArrayList<>();
 			//Make three children
 			for (int i = 0; i < 3; i++) {
-				tweakedStrats.add(new AdaptiveStrategy(strategy));
+				tweakedStrats.add(strategy.tweak());
 			}
 			baseStratToTweaks.put(strategy, tweakedStrats);
 		}
@@ -416,6 +473,7 @@ public class ClimbingGame {
 		});
 	}
 	
+	@Deprecated
 	public static void bigMappingTest () {
 		for (int i = 0; i < 3000; i++) {
 			new ClimbingGame().playGame();
@@ -454,6 +512,7 @@ public class ClimbingGame {
 		
 		System.out.println("<><><><><><><><>");
 		System.out.println("Best of the best of the best, sir!");
+		System.out.println("...With honors!");
 		bestOfBest.forEach(System.out::println);
 	}
 	
@@ -467,7 +526,7 @@ public class ClimbingGame {
 			drawPile = new ArrayList<>(hero.getDeck());
 			discardPile = new ArrayList<>();
 			Collections.shuffle(drawPile);
-			
+			int roundCount = 0;
 			//Combat
 			while (true) {
 				hero.setBlockHp(0);
@@ -492,24 +551,31 @@ public class ClimbingGame {
 				
 				//Do monster attack
 				hero.takeDamage(monster.getDamage());
+				if (monster.hasVulnerableAttacks()) {
+					hero.increaseVulnerability(Monster.VULN_FACTOR);
+				}
+				if (monster.hasWeakeningAttacks()) {
+					hero.increaseWeakness(Monster.WEAK_FACTOR);
+				}
+				monster.endRound();
 				if (hero.getCurrentHealth() <= 0) {
 					if (OUTPUT_LEVEL >= 1) {
 						System.out.println("Hero died on level " + level + ".");
 					}
 					keepGoing = false;
-					//Strategy strategyString = hero.strategy.toString();
-					List<Integer> levelsAttained;
-					if (strategyToLevelsAttainedMap.containsKey(hero.getStrategy())) {
-						levelsAttained = strategyToLevelsAttainedMap.get(hero.getStrategy());
-					} else {
-						levelsAttained = new ArrayList<>();
+					break; //Out of the individual round loop
+				}
+				if (roundCount >= 30) {
+					if (OUTPUT_LEVEL >= 1) {
+						System.out.println("Timed out on combat after 30+ rounds. Hero loses.");
 					}
-					levelsAttained.add(level);
-					strategyToLevelsAttainedMap.put(hero.getStrategy(), levelsAttained);
+					keepGoing = false;
 					break;
 				}
+				roundCount++;
 			}
 			if (keepGoing) {
+				hero.endCombat();
 				//Restore HP
 				if (level % 4 == 0) {
 					hero.heal(4 + (level / 6));
@@ -519,8 +585,17 @@ public class ClimbingGame {
 				level++;
 				
 				makeUpgradeDecision();
+			} else {
+				List<Integer> levelsAttained;
+				if (strategyToLevelsAttainedMap.containsKey(hero.getStrategy())) {
+					levelsAttained = strategyToLevelsAttainedMap.get(hero.getStrategy());
+				} else {
+					levelsAttained = new ArrayList<>();
+				}
+				levelsAttained.add(level);
+				strategyToLevelsAttainedMap.put(hero.getStrategy(), levelsAttained);
 			}
-		}
+		}//End while(keepGoing)
 	}
 	
 	public void makeUpgradeDecision () {
@@ -550,17 +625,22 @@ public class ClimbingGame {
 			System.out.println("\tDrew and played: " + card);
 		}
 		//Execute card properties. These are NOT mutually exclusive
-		if (card.isAttack()) {
-			monster.takeDamage(card.getMagnitude());
-		}
-		if (card.isBlock()) {
-			hero.addBlockHp(card.getMagnitude());
-		}
-		if (card.isHeal()) {
-			hero.heal(card.getMagnitude());
-		}
-		if (!card.isExhaust()) { //If NOT exhaust
-			discardPile.add(card);
+		if (card.isPower()) {
+			hero.addPower(card);
+		} else {
+			if (card.isAttack()) {
+				int damageAmount = (int) ((card.getMagnitude() + hero.getStrength()) * hero.getWeakDamageFactor());
+				monster.takeDamage(damageAmount);
+			}
+			if (card.isBlock()) {
+				hero.addBlockHp(card.getMagnitude() + hero.getDexterity());
+			}
+			if (card.isHeal()) {
+				hero.heal(card.getMagnitude());
+			}
+			if (!card.isExhaust()) { //If NOT exhaust
+				discardPile.add(card);
+			}
 		}
 	}
 	

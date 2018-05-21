@@ -4,6 +4,9 @@
  */
 package sts_heuristics;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class Card implements Comparable<Card>{
 	
 	private int magnitude;
@@ -11,8 +14,16 @@ public class Card implements Comparable<Card>{
 	private boolean isBlock;
 	private boolean isHeal;
 	private boolean isExhaust;
+	private boolean isPower;
+	private boolean isStatusImmunity;
+	
+	private boolean isStatIncrease;
+	private boolean isStrengthIncrease;
+	private boolean isPerTurnStatIncreasePower;
 	
 	private boolean upgraded;
+	
+	private EffectType effectType;
 	
 	//Represents the level of a card
 	//0 - Basic starter card
@@ -28,6 +39,23 @@ public class Card implements Comparable<Card>{
 		this.isExhaust = copy.isExhaust;
 		this.level = copy.level;
 		this.upgraded = copy.upgraded;
+		
+		this.isPower = copy.isPower;
+		this.isStatusImmunity = copy.isStatusImmunity;
+		this.isStatIncrease = copy.isStatIncrease;
+		this.isStrengthIncrease = copy.isStrengthIncrease;
+	}
+	
+	//Just a design sandbox for the moment
+	public static void makePowerCards () {
+		List<Card> powers = new ArrayList<>();
+		powers.add(new Card(1, EffectType.STR_PER_TURN, 1, true));
+		powers.add(new Card(1, EffectType.DEX_PER_TURN, 1, true));
+		powers.add(new Card(3, EffectType.STRENGTH, 1, true));
+		powers.add(new Card(3, EffectType.DEXTERITY, 1, true));
+		powers.add(new Card(0, EffectType.STATUS_IMMUNE, 1, true));
+		powers.add(new Card(3, EffectType.HEAL_PER_TURN, 1, true));
+		powers.add(new Card(4, EffectType.BLOCK_PER_TURN, 1, true));
 	}
 	
 	public Card (int magnitude, EffectType effectType) {
@@ -55,6 +83,8 @@ public class Card implements Comparable<Card>{
 				isHeal = true;
 				isBlock = true;
 				break;
+			default:
+				throw new AssertionError("Not one of the standard effects. Bad constructor usage.");
 		}
 		
 		level = 0;
@@ -69,6 +99,47 @@ public class Card implements Comparable<Card>{
 		}
 	}
 	
+	public Card (int magnitude, EffectType effectType, int level, boolean isPower) {
+		this(magnitude, effectType, level);
+		if (!isPower) {
+			throw new AssertionError("This constructor is for powers only.");
+		}
+		switch (effectType) {
+		case STRENGTH:
+			isStatIncrease = true;
+			isStrengthIncrease = true;
+			isPerTurnStatIncreasePower = false;
+			break;
+		case DEXTERITY:
+			isStatIncrease = true;
+			isStrengthIncrease = false;
+			isPerTurnStatIncreasePower = false;
+			break;
+		case STR_PER_TURN:
+			isStatIncrease = true;
+			isStrengthIncrease = true;
+			isPerTurnStatIncreasePower = true;
+			break;
+		case DEX_PER_TURN:
+			isStatIncrease = true;
+			isStrengthIncrease = false;
+			isPerTurnStatIncreasePower = true;
+			break;
+		case STATUS_IMMUNE:
+			isStatusImmunity = true;
+			break;
+		case HEAL_PER_TURN:
+			break;
+		case BLOCK_PER_TURN:
+			break;
+		default:
+			throw new AssertionError("Bad effect type for power constructor.");
+		}
+		this.effectType = effectType;
+		this.isPower = true;
+		isExhaust = true;
+	}
+	
 	public int compareTo (Card other) {
 		//Generates a descending by level order when Collections.sort() is called
 		return other.level - this.level;
@@ -76,9 +147,16 @@ public class Card implements Comparable<Card>{
 	
 	public void upgrade () {
 		if (!upgraded) {
-			magnitude += 2;
-			if (isExhaust) {
+			if (isPower) {
+				magnitude++;
+				if (!isPerTurnStatIncreasePower) {
+					magnitude++;
+				}
+			} else {
 				magnitude += 2;
+				if (isExhaust) {
+					magnitude += 2;
+				}
 			}
 			level++;
 			upgraded = true;
@@ -136,5 +214,29 @@ public class Card implements Comparable<Card>{
 	
 	public int getLevel () {
 		return level;
+	}
+	
+	public boolean isPower () {
+		return isPower;
+	}
+	
+	public EffectType getEffectType () {
+		return effectType;
+	}
+	
+	public boolean isStatIncrease () {
+		return isStatIncrease;
+	}
+	
+	public boolean isStrengthIncrease () {
+		return isStrengthIncrease;
+	}
+	
+	public boolean isPerTurnStatIncreasePower () {
+		return isPerTurnStatIncreasePower;
+	}
+	
+	public boolean isStatusImmunity () {
+		return isStatusImmunity;
 	}
 }

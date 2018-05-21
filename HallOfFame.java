@@ -65,6 +65,16 @@ public class HallOfFame {
 		determineMinAttainmentNeeded();
 	}
 	
+	public void recertifyHallOfFame () {
+		System.out.println("\"Recertifying\" hall of fame by running each strategy 10,000 times.");
+		for (AdaptiveStrategy strategy : famers) {
+			for (int i = 0; i < 10000; i++) {
+				new ClimbingGame(strategy).playGame();
+			}
+		}
+		//TODO: implement
+	}
+	
 	public static void main(String[] args) {
 		testAddPotentialMembers();
 	}

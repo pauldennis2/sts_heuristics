@@ -4,39 +4,37 @@
  */
 package sts_heuristics;
 
-import java.io.Serializable;
 import java.text.DecimalFormat;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 import java.util.Scanner;
 
-@SuppressWarnings("serial")
-public class Condition implements Serializable {
+public class SingleCondition implements Conditional {
 
-	boolean greaterThan;
+	private boolean greaterThan;
 	//Should either be byRatio or compareToConstant not both
-	boolean byRatio;
-	double ratio;
+	private boolean byRatio;
+	private double ratio;
 	
-	int priorityLevel;
-	boolean altersHighLevelPrefs;
+	private int priorityLevel;
+	private boolean altersHighLevelPrefs;
 	
-	boolean compareToConstant;
-	double constant;
+	private boolean compareToConstant;
+	private double constant;
 	
-	String firstFieldName;
-	String secondFieldName;
+	private String firstFieldName;
+	private String secondFieldName;
 	
 	transient Boolean evaluation;
 	transient double averageAttainment;
 	
-	final List<String> FIELD_NAMES = Arrays.asList("nonUpgradedCards", "numCards", "averageDamagePerCard",
+	final static List<String> FIELD_NAMES = Arrays.asList("nonUpgradedCards", "numCards", "averageDamagePerCard",
 			"averageBlockPerCard", "averageHealPerCard", "level", "maxHp", "currentHp",
 			"starterCardsUnupgraded", "unupgradedNonStarterCards");
 	
 	//Format: "$firstFieldName < $secondFieldName * ratio
-	public Condition (String text) {
+	public SingleCondition (String text) {
 		String[] words = text.split(" ");
 		firstFieldName = words[0];
 		priorityLevel = 0;
@@ -84,7 +82,7 @@ public class Condition implements Serializable {
 				break;
 			}
 			try {
-				Condition condition = new Condition(text);
+				SingleCondition condition = new SingleCondition(text);
 				System.out.println("Created condition: " + condition);
 			} catch (Throwable err) {
 				System.out.println("An exception was thrown: " + err.getMessage());
@@ -93,7 +91,11 @@ public class Condition implements Serializable {
 		inputScanner.close();
 	}
 	
-	public Condition (Random r, boolean altersHighLevelPrefs) {
+	private SingleCondition () {
+		
+	}
+	
+	public SingleCondition (Random r, boolean altersHighLevelPrefs) {
 		firstFieldName = FIELD_NAMES.get(r.nextInt(FIELD_NAMES.size()));
 		compareToConstant = r.nextBoolean();
 		DecimalFormat decFormat = new DecimalFormat("#.#");
@@ -123,38 +125,42 @@ public class Condition implements Serializable {
 	}
 	
 	//Take an "old" condition that was fairly successful and tweak it a little
-	public Condition (Random r, Condition old) {
-		this.firstFieldName = old.firstFieldName;
-		this.compareToConstant = old.compareToConstant;
-		this.greaterThan = old.greaterThan;
-		this.byRatio = old.byRatio;
-		this.ratio = old.ratio;
-		this.constant = old.constant;
-		this.secondFieldName = old.secondFieldName;
-		this.altersHighLevelPrefs = old.altersHighLevelPrefs;
+	//public Condition (Random r, Condition old) {
+	public SingleCondition tweak () {
+		Random r = new Random();
+		SingleCondition newCond = new SingleCondition();
+		newCond.firstFieldName = this.firstFieldName;
+		newCond.compareToConstant = this.compareToConstant;;
+		newCond.greaterThan = this.greaterThan;
+		newCond.byRatio = this.byRatio;
+		newCond.ratio = this.ratio;
+		newCond.constant = this.constant;
+		newCond.secondFieldName = this.secondFieldName;
+		newCond.altersHighLevelPrefs = this.altersHighLevelPrefs;
 		
 		DecimalFormat decFormat = new DecimalFormat("#.#");
 		
 		if (compareToConstant) {
 			//Change constant
 			double adjustment = r.nextDouble() + 0.5;
-			constant = Double.parseDouble(decFormat.format(adjustment * constant));
+			newCond.constant = Double.parseDouble(decFormat.format(adjustment * constant));
 		} else if (byRatio) {
 			//change ratio
 			//Number from 0.5 to 1.5
 			double adjustment = r.nextDouble() + 0.5;
-			ratio = Double.parseDouble(decFormat.format(adjustment * ratio));
+			newCond.ratio = Double.parseDouble(decFormat.format(adjustment * ratio));
 		} else {
 			//create ratio
-			byRatio = true;
+			newCond.byRatio = true;
 			//But in a more constrained range - 0.7 to 1.4
 			double d = r.nextDouble() * 0.7 + 0.7;
-			ratio = Double.parseDouble(new DecimalFormat("#.#").format(d));
+			newCond.ratio = Double.parseDouble(decFormat.format(d));
 		}
 		//Priority level should be higher since it's been tweaked
-		priorityLevel = old.priorityLevel + 1;
+		newCond.priorityLevel = this.priorityLevel + 1;
 		
-		validate();
+		newCond.validate();
+		return newCond;
 	}
 	
 	private void validate () {
@@ -178,6 +184,7 @@ public class Condition implements Serializable {
 		}
 	}
 	
+	@Override
 	public boolean evaluate (DeckReport report) {
 		Class<? extends DeckReport> c = report.getClass();
 		double firstVal;
@@ -236,8 +243,8 @@ public class Condition implements Serializable {
 
 	@Override
 	public boolean equals (Object otherObj) {
-		if (otherObj instanceof Condition) {
-			Condition other = (Condition) otherObj;
+		if (otherObj instanceof SingleCondition) {
+			SingleCondition other = (SingleCondition) otherObj;
 			return this.toString().equals(other.toString());
 		}
 		return false;
@@ -333,5 +340,10 @@ public class Condition implements Serializable {
 
 	public void setSecondFieldName(String secondFieldName) {
 		this.secondFieldName = secondFieldName;
+	}
+	
+	@Override
+	public boolean altersHighLevelPrefs () {
+		return altersHighLevelPrefs;
 	}
 }
