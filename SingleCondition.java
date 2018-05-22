@@ -9,6 +9,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 import java.util.Scanner;
+import java.util.stream.Collectors;
 
 public class SingleCondition implements Conditional {
 
@@ -18,7 +19,7 @@ public class SingleCondition implements Conditional {
 	private double ratio;
 	
 	private int priorityLevel;
-	private boolean altersHighLevelPrefs;
+	private Boolean altersHighLevelPrefs;
 	
 	private boolean compareToConstant;
 	private double constant;
@@ -29,11 +30,9 @@ public class SingleCondition implements Conditional {
 	transient Boolean evaluation;
 	transient double averageAttainment;
 	
-	final static List<String> FIELD_NAMES = Arrays.asList("nonUpgradedCards", "numCards", "averageDamagePerCard",
-			"averageBlockPerCard", "averageHealPerCard", "level", "maxHp", "currentHp",
-			"starterCardsUnupgraded", "unupgradedNonStarterCards");
+	static List<String> FIELD_NAMES = Arrays.stream(DeckReport.class.getFields()).map(field -> field.getName()).collect(Collectors.toList());
 	
-	//Format: "$firstFieldName < $secondFieldName * ratio
+	//Format: "$firstFieldName < $secondFieldName * $ratio
 	public SingleCondition (String text) {
 		String[] words = text.split(" ");
 		firstFieldName = words[0];
@@ -67,7 +66,7 @@ public class SingleCondition implements Conditional {
 		} else if (words[words.length - 1].contains("Cards")) {
 			altersHighLevelPrefs = false;
 		} else {
-			throw new AssertionError("Bad input string. Missing info on High level prefs or cards. (What does this condition do?)");
+			altersHighLevelPrefs = null;
 		}
 			
 		validate();
@@ -95,7 +94,7 @@ public class SingleCondition implements Conditional {
 		
 	}
 	
-	public SingleCondition (Random r, boolean altersHighLevelPrefs) {
+	public SingleCondition (Random r, Boolean altersHighLevelPrefs) {
 		firstFieldName = FIELD_NAMES.get(r.nextInt(FIELD_NAMES.size()));
 		compareToConstant = r.nextBoolean();
 		DecimalFormat decFormat = new DecimalFormat("#.#");
@@ -230,10 +229,12 @@ public class SingleCondition implements Conditional {
 		if (byRatio) {
 			response += " * " + ratio;
 		}
-		if (altersHighLevelPrefs) {
-			response += " (HLP)-";
-		} else {
-			response += " (Cards)-";
+		if (altersHighLevelPrefs != null) {
+			if (altersHighLevelPrefs) {
+				response += "- (HLP)";
+			} else {
+				response += "- (Cards)";
+			}
 		}
 		if (evaluation != null) {
 			//response += ", Evaluated to: " + evaluation;
@@ -343,7 +344,7 @@ public class SingleCondition implements Conditional {
 	}
 	
 	@Override
-	public boolean altersHighLevelPrefs () {
+	public Boolean altersHighLevelPrefs () {
 		return altersHighLevelPrefs;
 	}
 }

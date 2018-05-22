@@ -48,7 +48,10 @@ public class AdaptiveStrategy extends StrategyBase implements Tweakable {
 			"titan", "naga", "imp", "angel", "toad", "sage", "short", "flash");
 	
 	public final static List<String> HLPS = Arrays.asList("addCard", "upgradeCard", "removeCard", "maxHp");
-	public final static List<String> CARDS = Arrays.asList("heal", "strikeDefend", "strikeExhaust", "healBlock");
+	//public final static List<String> CARDS = Arrays.asList("heal", "strikeDefend", "strikeExhaust", "healBlock");
+	
+	List<CardOption> cardValues;
+	Map<Conditional, List<CardOption>> conditionsAndValuesMap;
 	
 	//For the difference function
 	private AdaptiveStrategy () {
@@ -65,6 +68,13 @@ public class AdaptiveStrategy extends StrategyBase implements Tweakable {
 		
 		Random r = new Random();
 		conditionsAndResultsMap = new HashMap<>();
+		
+		cardValues = new ArrayList<>();
+		conditionsAndValuesMap = new HashMap<>();
+		
+		for (String cardName : Card.ALL_CARD_NAMES) {
+			cardValues.add(new CardOption(cardName, r.nextDouble()));
+		}
 
 		//Create 0-2 high level pref conditions and 0-2 card pref conditions
 		int conditionsCount = 0;
@@ -261,10 +271,10 @@ public class AdaptiveStrategy extends StrategyBase implements Tweakable {
 	}
 	
 	private void validate () {
-		if ((!highLevelPrefs.containsAll(HLPS)) || !cardPrefs.containsAll(CARDS)) {
+		if ((!highLevelPrefs.containsAll(HLPS)) || !cardPrefs.containsAll(Card.ALL_CARD_NAMES)) {
 			throw new AssertionError("Missing card or prefs (bad list)");
 		}
-		if (highLevelPrefs.size() != HLPS.size() || cardPrefs.size() != CARDS.size()) {
+		if (highLevelPrefs.size() != HLPS.size() || cardPrefs.size() != Card.ALL_CARD_NAMES.size()) {
 			throw new AssertionError("Length mismatch.");
 		}
 		if (name == null || name.length() == 0) {
@@ -276,7 +286,7 @@ public class AdaptiveStrategy extends StrategyBase implements Tweakable {
 					throw new AssertionError("Missing high level pref in conditionsAndResults");
 				}
 			} else {
-				if (!conditionsAndResultsMap.get(condition).containsAll(CARDS)) {
+				if (!conditionsAndResultsMap.get(condition).containsAll(Card.ALL_CARD_NAMES)) {
 					throw new AssertionError("Missing card pref in conditionsAndResults");
 				}
 			}

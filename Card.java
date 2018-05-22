@@ -4,8 +4,15 @@
  */
 package sts_heuristics;
 
-import java.util.ArrayList;
+import static sts_heuristics.EffectType.ATTACK;
+import static sts_heuristics.EffectType.BLOCK_AND_ATTACK;
+import static sts_heuristics.EffectType.HEAL;
+import static sts_heuristics.EffectType.HEAL_AND_BLOCK;
+
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class Card implements Comparable<Card>{
 	
@@ -31,6 +38,13 @@ public class Card implements Comparable<Card>{
 	//2 - Upgraded non-starter card
 	private int level;
 	
+	public static final List<String> REGULAR_CARD_NAMES = Arrays.asList("heal", "strikeDefend", "strikeExhaust", "healBlock");
+	public static final List<String> POWER_CARD_NAMES = Arrays.asList("strPerTurn", "dexPerTurn", "staticStr", "staticDex",
+			"healPerTurn", "blockPerTurn", "ribbon");
+	
+	public static final List<String> ALL_CARD_NAMES = Arrays.asList("heal", "strikeDefend", "strikeExhaust", "healBlock",
+			"strPerTurn", "dexPerTurn", "staticStr", "staticDex", "healPerTurn", "blockPerTurn", "ribbon");
+	
 	public Card (Card copy) {
 		this.magnitude = copy.magnitude;
 		this.isAttack = copy.isAttack;
@@ -46,16 +60,31 @@ public class Card implements Comparable<Card>{
 		this.isStrengthIncrease = copy.isStrengthIncrease;
 	}
 	
+	private static final Map<String, Card> CARD_MAP = new HashMap<>();
+	private static boolean mapInit = false;
 	//Just a design sandbox for the moment
-	public static void makePowerCards () {
-		List<Card> powers = new ArrayList<>();
-		powers.add(new Card(1, EffectType.STR_PER_TURN, 1, true));
-		powers.add(new Card(1, EffectType.DEX_PER_TURN, 1, true));
-		powers.add(new Card(3, EffectType.STRENGTH, 1, true));
-		powers.add(new Card(3, EffectType.DEXTERITY, 1, true));
-		powers.add(new Card(0, EffectType.STATUS_IMMUNE, 1, true));
-		powers.add(new Card(3, EffectType.HEAL_PER_TURN, 1, true));
-		powers.add(new Card(4, EffectType.BLOCK_PER_TURN, 1, true));
+	public static Map<String, Card> getCardMap () {
+		//Map<String, Card> powers = new HashMap<>();
+		if (!mapInit) {
+			CARD_MAP.put("strPerTurn", new Card(1, EffectType.STR_PER_TURN, 1, true));
+			CARD_MAP.put("dexPerTurn", new Card(1, EffectType.DEX_PER_TURN, 1, true));
+			CARD_MAP.put("staticStr", new Card(3, EffectType.STRENGTH, 1, true));
+			CARD_MAP.put("staticDex", new Card(3, EffectType.DEXTERITY, 1, true));
+			CARD_MAP.put("ribbon", new Card(0, EffectType.STATUS_IMMUNE, 1, true));
+			CARD_MAP.put("healPerTurn", new Card(3, EffectType.HEAL_PER_TURN, 1, true));
+			CARD_MAP.put("blockPerTurn", new Card(4, EffectType.BLOCK_PER_TURN, 1, true));
+			
+			CARD_MAP.put("strikeDefend", new Card(4, BLOCK_AND_ATTACK, 1));
+			CARD_MAP.put("heal", new Card(5, HEAL, 1));
+			CARD_MAP.put("healBlock", new Card(4, HEAL_AND_BLOCK, 1));
+			Card exhaust = new Card (10, ATTACK, 1);
+			exhaust.setExhaust(true);
+			CARD_MAP.put("strikeExhaust", exhaust);
+			
+			mapInit = true;
+		}
+		
+		return CARD_MAP;
 	}
 	
 	public Card (int magnitude, EffectType effectType) {

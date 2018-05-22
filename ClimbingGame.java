@@ -62,13 +62,7 @@ public class ClimbingGame {
 		strategyAverageAttainment = new HashMap<>();
 		strategyToLevelsAttainedMap = new HashMap<>();
 		
-		newCardOptions = new HashMap<>();
-		newCardOptions.put("strikeDefend", new Card(4, BLOCK_AND_ATTACK, 1));
-		newCardOptions.put("heal", new Card(5, HEAL, 1));
-		newCardOptions.put("healBlock", new Card(4, HEAL_AND_BLOCK, 1));
-		Card exhaust = new Card (10, ATTACK, 1);
-		exhaust.setExhaust(true);
-		newCardOptions.put("strikeExhaust", exhaust);
+		newCardOptions = Card.getCardMap();
 		
 		advUpgradeOptions = new HashMap<>();
 		//Remove the least powerful card from the deck
@@ -117,11 +111,18 @@ public class ClimbingGame {
 			}
 		});
 		//Add a new card to the deck
-		List<String> options = Arrays.asList("heal", "strikeDefend", "strikeExhaust", "healBlock");
+		//List<String> options = Arrays.asList("heal", "strikeDefend", "strikeExhaust", "healBlock");
 		advUpgradeOptions.put("addCard", hero -> {
 			//Ugly ugly code to take all available upgrade options and remove a random one
+			List<String> regCards = Card.REGULAR_CARD_NAMES;
+			List<String> powerCards = Card.POWER_CARD_NAMES;
+			Collections.shuffle(regCards);
+			Collections.shuffle(powerCards);
+			List<String> options = new ArrayList<>();
+			options.add(regCards.get(0));
+			options.add(regCards.get(1));
+			options.add(powerCards.get(0));
 			
-			Collections.shuffle(options);
 			Map<String, Card> availableUpgradeOptions = new HashMap<>();
 			for (String cardName : newCardOptions.keySet()) {
 				availableUpgradeOptions.put(cardName, new Card(newCardOptions.get(cardName)));

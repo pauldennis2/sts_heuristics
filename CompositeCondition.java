@@ -8,15 +8,31 @@ import java.util.Random;
 
 public class CompositeCondition implements Conditional {
 	
-	private SingleCondition first;
-	private SingleCondition second;
+	private Conditional first;
+	private Conditional second;
 	private boolean isAnd;
 	
-	public CompositeCondition(SingleCondition first, SingleCondition second, boolean isAnd) {
+	private int priorityLevel;
+	private Boolean altersHighLevelPrefs;
+	
+	public CompositeCondition(Conditional first, Conditional second, boolean isAnd, Boolean altersHighLevelPrefs) {
 		super();
 		this.first = first;
 		this.second = second;
 		this.isAnd = isAnd;
+		this.altersHighLevelPrefs = altersHighLevelPrefs;
+		
+		priorityLevel = 1;
+	}
+	
+	public static void main(String[] args) {
+
+		//Condition to control taking a status immunity or not
+		
+		SingleCondition condition1 = new SingleCondition("numRibbons < 1.1");
+		SingleCondition condition2 = new SingleCondition("level > 10");
+		CompositeCondition cc = new CompositeCondition(condition1, condition2, true, false);
+		System.out.println(cc);
 	}
 	
 	@Override
@@ -31,7 +47,7 @@ public class CompositeCondition implements Conditional {
 	@Override
 	public CompositeCondition tweak () {
 		Random r = new Random();
-		CompositeCondition newCompCond = new CompositeCondition(first, second, isAnd);
+		CompositeCondition newCompCond = new CompositeCondition(first, second, isAnd, altersHighLevelPrefs);
 		if (r.nextBoolean()) {
 			newCompCond.isAnd = !isAnd;
 		} else {
@@ -55,7 +71,29 @@ public class CompositeCondition implements Conditional {
 		} else {
 			boolPart = "||";
 		}
-		return first.toString() + boolPart + second.toString();
+		String response = "(" + first.toString() + ") " + boolPart + " (" + second.toString() + ")";
+		if (altersHighLevelPrefs != null) {
+			if (altersHighLevelPrefs) {
+				response += " - (HLP)";
+			} else {
+				response += " - (Cards)";
+			}
+		}
+		return response;
+	}
+	
+	@Override
+	public int getPriorityLevel () {
+		return priorityLevel;
+	}
+	
+	@Override
+	public Boolean altersHighLevelPrefs () {
+		return altersHighLevelPrefs;
+	}
+	
+	public void setPriorityLevel (int priorityLevel) {
+		this.priorityLevel = priorityLevel;
 	}
 	
 }
