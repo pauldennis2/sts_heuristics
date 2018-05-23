@@ -13,27 +13,23 @@ public class CompositeCondition implements Conditional {
 	private boolean isAnd;
 	
 	private int priorityLevel;
-	private Boolean altersHighLevelPrefs;
 	
-	public CompositeCondition (Boolean altersHighLevelPrefs)  {
-		this.altersHighLevelPrefs = altersHighLevelPrefs;
+	public CompositeCondition ()  {
 		Random r = new Random();
 		if (r.nextBoolean()) {
-			first = new SingleCondition(r, null);
+			first = new SingleCondition(r);
 		} else {
-			Boolean b = null;
-			first = new CompositeCondition(b);
+			first = new CompositeCondition();
 		}
-		second = new SingleCondition(r, null);
+		second = new SingleCondition(r);
 		isAnd = r.nextBoolean();
 	}
 	
-	public CompositeCondition(Conditional first, Conditional second, boolean isAnd, Boolean altersHighLevelPrefs) {
+	public CompositeCondition(Conditional first, Conditional second, boolean isAnd) {
 		super();
 		this.first = first;
 		this.second = second;
 		this.isAnd = isAnd;
-		this.altersHighLevelPrefs = altersHighLevelPrefs;
 		
 		priorityLevel = 1;
 	}
@@ -145,13 +141,6 @@ public class CompositeCondition implements Conditional {
 		} else {
 			second = new SingleCondition(secondText);
 		}
-		if (text.contains("*HLP*")) {
-			altersHighLevelPrefs = true;
-		} else if (text.contains("*Cards*")) {
-			altersHighLevelPrefs = false;
-		} else {
-			altersHighLevelPrefs = null;
-		}
 		if (textNotInsideParens.toString().contains("&&")) {
 			isAnd = true;
 		} else if (textNotInsideParens.toString().contains("||")) {
@@ -164,7 +153,7 @@ public class CompositeCondition implements Conditional {
 	public static void main(String[] args) {
 		
 		for (int i = 0; i < 1000; i++) {
-			CompositeCondition cc = new CompositeCondition(false);
+			CompositeCondition cc = new CompositeCondition();
 			CompositeCondition rebuilt = new CompositeCondition(cc.toString());
 			if (!cc.equals(rebuilt)) {
 				System.out.println("Not equal!");
@@ -194,7 +183,7 @@ public class CompositeCondition implements Conditional {
 	@Override
 	public CompositeCondition tweak () {
 		Random r = new Random();
-		CompositeCondition newCompCond = new CompositeCondition(first, second, isAnd, altersHighLevelPrefs);
+		CompositeCondition newCompCond = new CompositeCondition(first, second, isAnd);
 		if (r.nextBoolean()) {
 			newCompCond.isAnd = !isAnd;
 		} else {
@@ -219,13 +208,6 @@ public class CompositeCondition implements Conditional {
 			boolPart = "||";
 		}
 		String response = "(" + first.toString() + ") " + boolPart + " (" + second.toString() + ")";
-		if (altersHighLevelPrefs != null) {
-			if (altersHighLevelPrefs) {
-				response += " - *HLP*";
-			} else {
-				response += " - *Cards*";
-			}
-		}
 		return response;
 	}
 	
@@ -243,17 +225,23 @@ public class CompositeCondition implements Conditional {
 	public int compareTo (Conditional other) {
 		return this.priorityLevel - other.getPriorityLevel();
 	}
-	
+
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + ((first == null) ? 0 : first.hashCode());
+		result = prime * result + (isAnd ? 1231 : 1237);
+		result = prime * result + ((second == null) ? 0 : second.hashCode());
+		return result;
+	}
+
+
 	@Override
 	public int getPriorityLevel () {
 		return priorityLevel;
 	}
-	
-	@Override
-	public Boolean altersHighLevelPrefs () {
-		return altersHighLevelPrefs;
-	}
-	
+
 	public void setPriorityLevel (int priorityLevel) {
 		this.priorityLevel = priorityLevel;
 	}

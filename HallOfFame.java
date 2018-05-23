@@ -4,6 +4,7 @@
  */
 package sts_heuristics;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -26,6 +27,8 @@ public class HallOfFame {
 	private List<AdaptiveStrategy> potentials;
 	
 	public HallOfFame () {
+		//String directory = "data/gritty/" + System.currentTimeMillis();
+		new File("data/hall_of_fame/old/").mkdirs();
 		famers = AdaptiveStrategy.readStrategiesFromFile(FAMERS_FILE_LOC);
 		potentials = AdaptiveStrategy.readStrategiesFromFile(POTENTIALS_FILE_LOC);
 		if (potentials.size() == 0) {

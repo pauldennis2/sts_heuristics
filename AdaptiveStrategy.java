@@ -66,8 +66,8 @@ public class AdaptiveStrategy extends StrategyBase implements Tweakable {
 		name = getNewName();
 		Random r = new Random();
 		
-		cardValues = new HashMap<>();
-		hlpValues = new HashMap<>();
+		cardValues = new RoundedDoubleMap();
+		hlpValues = new RoundedDoubleMap();
 		CARDS.forEach(cardName -> cardValues.put(cardName, r.nextDouble()));
 		HLPS.forEach(hlpref -> hlpValues.put(hlpref, r.nextDouble()));
 		
@@ -79,9 +79,9 @@ public class AdaptiveStrategy extends StrategyBase implements Tweakable {
 			Map<String, Double> values = getRandomValues(HLPS);
 			
 			if (r.nextBoolean() || r.nextBoolean()) {
-				conditionsAndValuesMap.put(new SingleCondition(r, true), values);
+				conditionsAndValuesMap.put(new SingleCondition(r), values);
 			} else {
-				conditionsAndValuesMap.put(new CompositeCondition(true), values);
+				conditionsAndValuesMap.put(new CompositeCondition(), values);
 			}
 			
 			conditionsCount++;
@@ -95,9 +95,9 @@ public class AdaptiveStrategy extends StrategyBase implements Tweakable {
 			Map<String, Double> values = getRandomValues(CARDS);
 			
 			if (r.nextBoolean() || r.nextBoolean()) {
-				conditionsAndValuesMap.put(new SingleCondition(r, false), values);
+				conditionsAndValuesMap.put(new SingleCondition(r), values);
 			} else {
-				conditionsAndValuesMap.put(new CompositeCondition(false), values);
+				conditionsAndValuesMap.put(new CompositeCondition(), values);
 			}
 			
 			conditionsCount++;
@@ -108,17 +108,118 @@ public class AdaptiveStrategy extends StrategyBase implements Tweakable {
 		validate();
 	}
 	
-	/*Helper method. Given a list, will return a map with at least one
-	 * of those values mapped to a random Double
-	 */
-	private static Map<String, Double> getRandomValues (List<String> inputList) {
+	//Sometimes when a mommy strategy and a daddy strategy love each other VERY much...
+	public AdaptiveStrategy (AdaptiveStrategy dad, AdaptiveStrategy mom) {
+		this.dadsName = dad.name;
+		this.momsName = mom.name;
+		this.name = get2ParentChildName(dadsName, momsName);
 		Random r = new Random();
-		Map<String, Double> values = new HashMap<>();
-		do {
-			String prefName = inputList.get(r.nextInt(inputList.size() - 1));
-			values.put(prefName, r.nextDouble());
-		} while (r.nextBoolean());
-		return values;
+		conditionsAndValuesMap = new HashMap<>();
+
+		hlpValues = new RoundedDoubleMap();
+		cardValues = new RoundedDoubleMap();
+		
+		HLPS.forEach(hlp -> {
+			if (r.nextBoolean()) { //Use dad's
+				hlpValues.put(hlp, dad.hlpValues.get(hlp));
+			} else { //Use mom's
+				hlpValues.put(hlp, mom.hlpValues.get(hlp));
+			}
+		});
+		
+		CARDS.forEach(card -> {
+			if (r.nextBoolean()) { //Use dad's
+				cardValues.put(card, dad.cardValues.get(card));
+			} else { //Use mom's
+				cardValues.put(card, mom.cardValues.get(card));
+			}
+		});
+		
+		/*Keep 75% (on average) of each parent's conditions, then discard 25% of total
+		 * 0.75 + 0.75 = 1.5,    1.5 * 0.75 = 1.125
+		 * This means a 12% average increase in conditions, which is about right
+		 * (We want child strategies to generally move toward being more complex)
+		 */
+		Map<Conditional, Map<String, Double>> newConditions = new HashMap<>();
+		for (Conditional condition : dad.conditionsAndValuesMap.keySet()) {
+			if (r.nextDouble() > 0.25) {
+				newConditions.put(condition, dad.conditionsAndValuesMap.get(condition));
+			}
+		}
+		for (Conditional condition : mom.conditionsAndValuesMap.keySet()) {
+			if (r.nextDouble() > 0.25) {
+				newConditions.put(condition, mom.conditionsAndValuesMap.get(condition));
+			}
+		}
+		for (Conditional condition : newConditions.keySet()) {
+			if (r.nextDouble() > 0.25) {
+				this.conditionsAndValuesMap.put(condition, newConditions.get(condition));
+			}
+		}
+		
+		validate();
+	}
+	
+	public AdaptiveStrategy (String fileString) {
+		String[] tokens = fileString.split(":");
+		name = tokens[0];
+		averageLevelAttained = Double.parseDouble(tokens[1]);
+		//Remove any whitespace or brackets []
+		String hlpString = tokens[2].replaceAll("[\\{\\} ]", "");
+		String cardPrefString = tokens[3].replaceAll("[\\{\\} ]", "");
+		conditionsAndValuesMap = new HashMap<>();
+		
+		
+		hlpValues = new RoundedDoubleMap();
+		cardValues = new RoundedDoubleMap();
+		String[] hlpValueArray = hlpString.split(",");
+		String[] cardValueArray = cardPrefString.split(",");
+		
+		//TODO: remove inelegant duplicated code
+		for (String hlp : hlpValueArray) {
+			String[] split = hlp.split("=");
+			hlpValues.put(split[0], Double.parseDouble(split[1]));
+		}
+		for (String card : cardValueArray) {
+			String[] split = card.split("=");
+			cardValues.put(split[0], Double.parseDouble(split[1]));
+		}
+		
+		if (tokens.length >= 5) {
+			String conditionsMap = tokens[4];
+			String[] conditionsStrings = conditionsMap.split(";");
+			
+			for (String conditionString : conditionsStrings) {
+				String[] mapTokens = conditionString.split("-");
+				Conditional condition;
+				if (conditionString.contains("&&") || conditionString.contains("||")) {
+					condition = new CompositeCondition(mapTokens[0].trim());
+				} else {
+					condition = new SingleCondition(mapTokens[0].trim());
+				}
+				//List<String> results = new ArrayList<>();
+				Map<String, Double> values = new RoundedDoubleMap();
+				String[] resultsTokens = mapTokens[1].split(",");
+				for (String resultsToken : resultsTokens) {
+					resultsToken = resultsToken.replaceAll("[\\{\\} ]", "");
+					String[] split = resultsToken.split("=");
+					values.put(split[0], Double.parseDouble(split[1]));
+				}
+				conditionsAndValuesMap.put(condition, values);
+			}
+		}
+		validate();
+	}
+	
+	public AdaptiveStrategy getCopy () {
+		AdaptiveStrategy copy = new AdaptiveStrategy();
+		copy.cardValues = new RoundedDoubleMap(this.cardValues);
+		copy.hlpValues = new RoundedDoubleMap(this.hlpValues);
+		copy.isDiff = false;
+		copy.conditionsAndValuesMap = new HashMap<>(this.conditionsAndValuesMap);
+		copy.name = this.name;
+		copy.validate();
+		return copy;
 	}
 	
 	@Override
@@ -126,8 +227,8 @@ public class AdaptiveStrategy extends StrategyBase implements Tweakable {
 		AdaptiveStrategy newStrat = new AdaptiveStrategy();
 		newStrat.isDiff = false;
 		newStrat.conditionsAndValuesMap = new HashMap<>(this.conditionsAndValuesMap);
-		newStrat.hlpValues = new HashMap<>(this.hlpValues);
-		newStrat.cardValues = new HashMap<>(this.cardValues);
+		newStrat.hlpValues = new RoundedDoubleMap(this.hlpValues);
+		newStrat.cardValues = new RoundedDoubleMap(this.cardValues);
 		newStrat.name = getChildName(this.name);
 	
 		Random r = new Random();
@@ -160,14 +261,8 @@ public class AdaptiveStrategy extends StrategyBase implements Tweakable {
 				}
 			} else { //Add/remove a condition
 				if (r.nextBoolean() || numConditions < 2) { //Add a condition
-					boolean altersHighLevelPrefs = r.nextBoolean();
-					Conditional condition = new SingleCondition (r, altersHighLevelPrefs);
-					Map<String, Double> values;
-					if (altersHighLevelPrefs) {
-						values = getRandomValues(HLPS);
-					} else {
-						values = getRandomValues(CARDS);
-					}
+					Conditional condition = new SingleCondition (r);
+					Map<String, Double> values = getRandomValues(HLPS, CARDS);
 					newStrat.conditionsAndValuesMap.put(condition, values);
 				} else if (numConditions >= 2) { //Remove a condition
 					Conditional cond = conditionsAndValuesMap.keySet().stream().collect(Collectors.toList()).get(0);
@@ -185,105 +280,39 @@ public class AdaptiveStrategy extends StrategyBase implements Tweakable {
 		return newStrat;
 	}
 	
-	//Sometimes when a mommy strategy and a daddy strategy love each other VERY much...
-	public AdaptiveStrategy (AdaptiveStrategy dad, AdaptiveStrategy mom) {
-		this.dadsName = dad.name;
-		this.momsName = mom.name;
-		this.name = get2ParentChildName(dadsName, momsName);
+	/*Helper method. Given a list, will return a map with at least one
+	 * of those values mapped to a random Double
+	 */
+	private static Map<String, Double> getRandomValues (List<String> inputList) {
 		Random r = new Random();
-		conditionsAndValuesMap = new HashMap<>();
-
-		hlpValues = new HashMap<>();
-		cardValues = new HashMap<>();
-		
-		HLPS.forEach(hlp -> {
-			if (r.nextBoolean()) { //Use dad's
-				hlpValues.put(hlp, dad.hlpValues.get(hlp));
-			} else { //Use mom's
-				hlpValues.put(hlp, mom.hlpValues.get(hlp));
-			}
-		});
-		
-		CARDS.forEach(card -> {
-			if (r.nextBoolean()) { //Use dad's
-				cardValues.put(card, dad.cardValues.get(card));
-			} else { //Use mom's
-				cardValues.put(card, mom.cardValues.get(card));
-			}
-		});
-		
-		
-		/*Keep 75% (on average) of each parent's conditions, then discard 25% of total
-		 * 0.75 + 0.75 = 1.5,    1.5 * 0.75 = 1.125
-		 * This means a 12% average increase in conditions, which is about right
-		 * (We want child strategies to generally move toward being more complex)
-		 */
-		Map<Conditional, Map<String, Double>> newConditions = new HashMap<>();
-		for (Conditional condition : dad.conditionsAndValuesMap.keySet()) {
-			if (r.nextDouble() > 0.25) {
-				newConditions.put(condition, dad.conditionsAndValuesMap.get(condition));
-			}
-		}
-		for (Conditional condition : mom.conditionsAndValuesMap.keySet()) {
-			if (r.nextDouble() > 0.25) {
-				newConditions.put(condition, mom.conditionsAndValuesMap.get(condition));
-			}
-		}
-		for (Conditional condition : newConditions.keySet()) {
-			if (r.nextDouble() > 0.25) {
-				this.conditionsAndValuesMap.put(condition, newConditions.get(condition));
-			}
-		}
-		
-		validate();
+		Map<String, Double> values = new RoundedDoubleMap();
+		do {
+			String prefName = inputList.get(r.nextInt(inputList.size() - 1));
+			values.put(prefName, r.nextDouble());
+		} while (r.nextBoolean());
+		return values;
 	}
 	
-	public AdaptiveStrategy (String fileString) {
-		String[] tokens = fileString.split(":");
-		name = tokens[0];
-		averageLevelAttained = Double.parseDouble(tokens[1]);
-		//Remove any whitespace or brackets []
-		String hlpString = tokens[2].replaceAll("[\\[\\] ]", "");
-		String cardPrefString = tokens[3].replaceAll("[\\[\\] ]", "");
-		conditionsAndValuesMap = new HashMap<>();
-		
-		if (tokens.length >= 5) {
-			String conditionsMap = tokens[4];
-			String[] conditionsStrings = conditionsMap.split(";");
-			
-			for (String conditionString : conditionsStrings) {
-				String[] mapTokens = conditionString.split("-");
-				SingleCondition condition = new SingleCondition(mapTokens[0].trim());
-				List<String> results = new ArrayList<>();
-				String[] resultsTokens = mapTokens[1].split(",");
-				for (String resultsToken : resultsTokens) {
-					resultsToken = resultsToken.replaceAll("[\\[\\] ]", "");
-					results.add(resultsToken);
-				}
-				conditionsAndValuesMap.put(condition, null);
+	private static Map<String, Double> getRandomValues (List<String> firstInputList, List<String> secondInputList) {
+		Random r = new Random();
+		Map<String, Double> values = new RoundedDoubleMap();
+		do {
+			String prefName;
+			if (r.nextBoolean()) {
+				prefName = firstInputList.get(r.nextInt(firstInputList.size() - 1));
+			} else {
+				prefName = secondInputList.get(r.nextInt(secondInputList.size() - 1));
 			}
-		}
-		validate();
-		//TODO fix
-		throw new AssertionError("Fix. We probably didn't even get here =(");
-	}
-	
-	public AdaptiveStrategy getCopy () {
-		AdaptiveStrategy copy = new AdaptiveStrategy();
-		copy.cardValues = new HashMap<>(this.cardValues);
-		copy.hlpValues = new HashMap<>(this.hlpValues);
-		copy.isDiff = false;
-		copy.conditionsAndValuesMap = new HashMap<>(this.conditionsAndValuesMap);
-		copy.name = this.name;
-		copy.validate();
-		return copy;
+			values.put(prefName, r.nextDouble());
+		} while (r.nextBoolean());
+		return values;
 	}
 	
 	//Defines the file format
 	public String getFileString () {
 		StringBuilder response = new StringBuilder();
 		response.append(name + ":" + averageLevelAttained + ":");
-		response.append(hlpValues.toString() + ":" + cardValues + ":");
+		response.append(hlpValues + ":" + cardValues + ":");
 		boolean first = true;
 		for (Conditional condition : conditionsAndValuesMap.keySet()) {
 			if (first) {
@@ -291,7 +320,7 @@ public class AdaptiveStrategy extends StrategyBase implements Tweakable {
 			} else {
 				response.append("; ");
 			}
-			response.append(condition.toString() + conditionsAndValuesMap.get(condition).toString());
+			response.append(condition.toString() + "-" + conditionsAndValuesMap.get(condition).toString());
 		}
 		return response.toString();
 	}
@@ -309,6 +338,7 @@ public class AdaptiveStrategy extends StrategyBase implements Tweakable {
 	}
 
  	public static AdaptiveStrategy buildJoyfulDragon () {
+ 		/*
 		AdaptiveStrategy joyfulDragon = new AdaptiveStrategy();
 		joyfulDragon.isDiff = false;
 		joyfulDragon.name = "joyful-dragon90";
@@ -329,13 +359,14 @@ public class AdaptiveStrategy extends StrategyBase implements Tweakable {
 		List<String> vdPrefs = Arrays.asList("strikeExhaust", "strikeDefend", "healBlock", "heal");
 		joyfulDragon.conditionsAndValuesMap.put(valueDamage, null);
 		joyfulDragon.validate();
+		*/
 		//TODO fix
 		throw new AssertionError("fix (add values in)");
 	}
 	
 	public static void testWriteToFile () {
 		List<AdaptiveStrategy> strategies = new ArrayList<>();
-		for (int i = 0; i < 5; i++) {
+		for (int i = 0; i < 100; i++) {
 			strategies.add(new AdaptiveStrategy(new Hero()));
 		}
 		writeStrategiesToFile(strategies, "data/strategies.txt");
@@ -426,7 +457,20 @@ public class AdaptiveStrategy extends StrategyBase implements Tweakable {
 	}
 	
 	public static void main(String[] args) {
-		test2ParentNameGeneration();
+		//test2ParentNameGeneration();
+		for (int i = 0; i < 5; i++) {
+			AdaptiveStrategy strat = new AdaptiveStrategy(new Hero());
+			String fileString = strat.getFileString();
+			System.out.println(fileString);
+			
+			AdaptiveStrategy rebuilt = new AdaptiveStrategy(fileString);
+			if (!rebuilt.equals(strat)) {
+				System.out.println("Not equal!");
+				System.out.println("rebuilt = \n" + rebuilt.getFileString());
+			}
+			System.out.println("-------");
+		}
+		testWriteToFile();
 	}
 	
 	public static void test2ParentNameGeneration () {
@@ -475,7 +519,6 @@ public class AdaptiveStrategy extends StrategyBase implements Tweakable {
 	private List<String> getPreferences (boolean highLevel) {
 		DeckReport report = new DeckReport(hero);
 		List<Conditional> liveConditions = conditionsAndValuesMap.keySet().stream()
-			.filter(condition -> condition.altersHighLevelPrefs() == highLevel)
 			.filter(condition -> condition.evaluate(report))
 			.collect(Collectors.toList());
 		Map<String, Double> tempValues;
@@ -486,20 +529,23 @@ public class AdaptiveStrategy extends StrategyBase implements Tweakable {
 				System.out.println("\tAll live conditions:");
 				liveConditions.forEach(condition -> System.out.println("\t\t" + condition));
 			}
-			tempValues = new HashMap<>();
+			tempValues = new RoundedDoubleMap();
 			Map<String, Double> optionValues;
-			//Copy over the values
 			if (highLevel) {
 				optionValues = hlpValues;
 			} else {
 				optionValues = cardValues;
 			}
+			//Copy over the values
 			optionValues.keySet().forEach(optionName -> tempValues.put(optionName, optionValues.get(optionName)));
 			//Edit them based on conditions
 			for (Conditional condition : liveConditions) {
 				Map<String, Double> overwriteValues = conditionsAndValuesMap.get(condition);
 				for (String optionName : overwriteValues.keySet()) {
-					tempValues.put(optionName, overwriteValues.get(optionName));
+					//Replace IFF it's a HLP and we care about HLPS or it's a Card and we care about cards
+					if ((highLevel && HLPS.contains(optionName)) || (!highLevel && CARDS.contains(optionName))){
+						tempValues.put(optionName, overwriteValues.get(optionName));
+					}
 				}
 			}
 			
@@ -571,6 +617,7 @@ public class AdaptiveStrategy extends StrategyBase implements Tweakable {
 			boolean mapSame = this.conditionsAndValuesMap.equals(otherStrat.conditionsAndValuesMap);
 			boolean cpsSame = this.cardValues.equals(otherStrat.cardValues);
 			boolean hlpSame = this.hlpValues.equals(otherStrat.hlpValues);
+			//System.out.println("mapSame = " + mapSame + ", cpsSame = " + cpsSame + ", hlpSame = " + hlpSame);
 			return mapSame && cpsSame && hlpSame;
 		}
 		return false;
@@ -591,10 +638,10 @@ public class AdaptiveStrategy extends StrategyBase implements Tweakable {
 	public static AdaptiveStrategy getDifferences (AdaptiveStrategy strat1, AdaptiveStrategy strat2) {
 		AdaptiveStrategy diff = new AdaptiveStrategy();
 		if (!strat1.hlpValues.equals(strat2.hlpValues)) {
-			diff.hlpValues = new HashMap<>(strat1.hlpValues);
+			diff.hlpValues = new RoundedDoubleMap(strat1.hlpValues);
 		}
 		if (!strat1.cardValues.equals(strat2.cardValues)) {
-			diff.cardValues = new HashMap<>(strat1.cardValues);
+			diff.cardValues = new RoundedDoubleMap(strat1.cardValues);
 		}
 		if (!strat1.conditionsAndValuesMap.equals(strat2.conditionsAndValuesMap)) {
 			Map<Conditional, Map<String, Double>> diffMap = new HashMap<>();
@@ -611,6 +658,7 @@ public class AdaptiveStrategy extends StrategyBase implements Tweakable {
 	
 	//All Strategies must be either diffs or NOT diffs (not a mix)
 	public static StrategyGroupReport analyzeStrategies (List<AdaptiveStrategy> strategies) {
+		/*
 		Map<StringIndex, Integer> cardPrefOccurances = new HashMap<>();
 		Map<StringIndex, Integer> hlpOccurances = new HashMap<>();
 		boolean diffs = strategies.get(0).isDiff;
@@ -646,6 +694,7 @@ public class AdaptiveStrategy extends StrategyBase implements Tweakable {
 				//TODO : some analysis of the conditions/results
 			}
 		}
+		*/
 		//TODO - fix
 		throw new AssertionError("Fix the analysis after switching to values");
 		//return new StrategyGroupReport(cardPrefOccurances, hlpOccurances);

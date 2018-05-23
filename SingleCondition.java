@@ -19,7 +19,6 @@ public class SingleCondition implements Conditional {
 	private double ratio;
 	
 	private int priorityLevel;
-	private Boolean altersHighLevelPrefs;
 	
 	private boolean compareToConstant;
 	private double constant;
@@ -61,13 +60,6 @@ public class SingleCondition implements Conditional {
 		} else {
 			byRatio = false;
 		}
-		if (words[words.length - 1].contains("*HLP*")) {
-			altersHighLevelPrefs = true;
-		} else if (words[words.length - 1].contains("*Cards*")) {
-			altersHighLevelPrefs = false;
-		} else {
-			altersHighLevelPrefs = null;
-		}
 			
 		validate();
 	}
@@ -97,7 +89,7 @@ public class SingleCondition implements Conditional {
 		
 	}
 	
-	public SingleCondition (Random r, Boolean altersHighLevelPrefs) {
+	public SingleCondition (Random r) {
 		firstFieldName = FIELD_NAMES.get(r.nextInt(FIELD_NAMES.size()));
 		compareToConstant = r.nextBoolean();
 		DecimalFormat decFormat = new DecimalFormat("#.#");
@@ -121,7 +113,6 @@ public class SingleCondition implements Conditional {
 		}
 		greaterThan = r.nextBoolean();
 		priorityLevel = 0;
-		this.altersHighLevelPrefs = altersHighLevelPrefs;
 		
 		validate();
 	}
@@ -138,7 +129,6 @@ public class SingleCondition implements Conditional {
 		newCond.ratio = this.ratio;
 		newCond.constant = this.constant;
 		newCond.secondFieldName = this.secondFieldName;
-		newCond.altersHighLevelPrefs = this.altersHighLevelPrefs;
 		
 		DecimalFormat decFormat = new DecimalFormat("#.#");
 		
@@ -232,26 +222,10 @@ public class SingleCondition implements Conditional {
 		if (byRatio) {
 			response += " * " + ratio;
 		}
-		if (altersHighLevelPrefs != null) {
-			if (altersHighLevelPrefs) {
-				response += "- (HLP)";
-			} else {
-				response += "- (Cards)";
-			}
-		}
 		if (evaluation != null) {
 			//response += ", Evaluated to: " + evaluation;
 		}
 		return response;
-	}
-
-	@Override
-	public boolean equals (Object otherObj) {
-		if (otherObj instanceof SingleCondition) {
-			SingleCondition other = (SingleCondition) otherObj;
-			return this.toString().equals(other.toString());
-		}
-		return false;
 	}
 	
 	//A list will be sorted by default in Ascending order of priority
@@ -263,12 +237,24 @@ public class SingleCondition implements Conditional {
 	public boolean isGreaterThan() {
 		return greaterThan;
 	}
+	
+	public void setGreaterThan(boolean greaterThan) {
+		this.greaterThan = greaterThan;
+	}
+	
+	@Override
+	public boolean equals (Object otherObj) {
+		if (otherObj instanceof SingleCondition) {
+			SingleCondition other = (SingleCondition) otherObj;
+			return this.toString().equals(other.toString());
+		}
+		return false;
+	}
 
 	@Override
 	public int hashCode() {
 		final int prime = 31;
 		int result = 1;
-		result = prime * result + (altersHighLevelPrefs ? 1231 : 1237);
 		result = prime * result + (byRatio ? 1231 : 1237);
 		result = prime * result + (compareToConstant ? 1231 : 1237);
 		long temp;
@@ -276,20 +262,16 @@ public class SingleCondition implements Conditional {
 		result = prime * result + (int) (temp ^ (temp >>> 32));
 		result = prime * result + ((firstFieldName == null) ? 0 : firstFieldName.hashCode());
 		result = prime * result + (greaterThan ? 1231 : 1237);
+		result = prime * result + priorityLevel;
 		temp = Double.doubleToLongBits(ratio);
 		result = prime * result + (int) (temp ^ (temp >>> 32));
 		result = prime * result + ((secondFieldName == null) ? 0 : secondFieldName.hashCode());
 		return result;
 	}
-
-	public void setGreaterThan(boolean greaterThan) {
-		this.greaterThan = greaterThan;
-	}
-
+	
 	public boolean isByRatio() {
 		return byRatio;
 	}
-
 
 	public void setByRatio(boolean byRatio) {
 		this.byRatio = byRatio;
@@ -310,14 +292,6 @@ public class SingleCondition implements Conditional {
 
 	public void setPriorityLevel(int priorityLevel) {
 		this.priorityLevel = priorityLevel;
-	}
-
-	public boolean isAltersHighLevelPrefs() {
-		return altersHighLevelPrefs;
-	}
-
-	public void setAltersHighLevelPrefs(boolean altersHighLevelPrefs) {
-		this.altersHighLevelPrefs = altersHighLevelPrefs;
 	}
 
 	public boolean isCompareToConstant() {
@@ -350,10 +324,5 @@ public class SingleCondition implements Conditional {
 
 	public void setSecondFieldName(String secondFieldName) {
 		this.secondFieldName = secondFieldName;
-	}
-	
-	@Override
-	public Boolean altersHighLevelPrefs () {
-		return altersHighLevelPrefs;
 	}
 }

@@ -6,7 +6,6 @@ package sts_heuristics;
 
 public interface Conditional extends Tweakable, Comparable<Conditional>{
 	boolean evaluate (DeckReport report);
-	Boolean altersHighLevelPrefs();
 	int getPriorityLevel();
 	
 	@Override

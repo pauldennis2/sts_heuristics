@@ -34,8 +34,13 @@ public class ClimbingGame {
 	//0 - used for highest level output
 	//1 - used for things that occur 1-2 times per game
 	//2 - used for things that occur timers per round
-	public static int OUTPUT_LEVEL = 4;
+	public static int OUTPUT_LEVEL = 0;
 	private static boolean init = false;
+	static long timeOutCount = 0;
+	static long deathCount = 0;
+	
+	static long timeSpentOnDeathGames = 0;
+	static long timeSpentOnTimeOutGames = 0;
 	
 	public ClimbingGame () {
 		if (!init) {
@@ -160,36 +165,69 @@ public class ClimbingGame {
 	}
 	
 	public static void main(String[] args) {
-		/*
+		long masterStartTime = System.currentTimeMillis();
 		staticInit();
 		breedingMethod1();
+		//getGrittyHallOfFameData();
 		hallOfFame.close();
-		*/
-		new ClimbingGame(new AdaptiveStrategy(new Hero())).playGame();
+		long masterEndTime = System.currentTimeMillis();
+		System.out.println("Whole process took: " + (masterEndTime - masterStartTime) + " milliseconds.");
+		System.out.println("Spent " + (timeSpentOnDeathGames + timeSpentOnTimeOutGames) + " in games.");
+		System.out.println("Spent " + (masterEndTime - masterStartTime - timeSpentOnDeathGames - timeSpentOnTimeOutGames) +
+				" on other things.");
+		
+		System.out.println("Ribbon data:");
+		System.out.println("Ribbon Played count = " + Hero.ribbonsPlayedCount);
+		System.out.println("Ribbon Helped count = " + Hero.ribbonsHelpedCount);
+		
 	}
 	
 	public static void breedingMethod1 () {
+		long startTime;
+		long endTime;
 		seedHallOfFame();
-		breedStrategies(hallOfFame.getPotentials(), 3);
-		breedStrategies(hallOfFame.getFamers(), 50);
 		
+		startTime = System.currentTimeMillis();
+		breedStrategies(hallOfFame.getPotentials(), 3);
+		endTime = System.currentTimeMillis();
+		System.out.println("Breeding took: " + (endTime - startTime));
+		
+		startTime = System.currentTimeMillis();
+		breedStrategies(hallOfFame.getFamers(), 50);
+		endTime = System.currentTimeMillis();
+		System.out.println("Breeding took: " + (endTime - startTime));
+		
+		startTime = System.currentTimeMillis();
 		deepBreedStrategies(hallOfFame.getPotentials(), 2);
+		endTime = System.currentTimeMillis();
+		System.out.println("Breeding took: " + (endTime - startTime));
+		
+		
+		
 		deepBreedStrategies(hallOfFame.getFamers(), 10);
 		crossBreedStrategies(hallOfFame.getFamers(), 3);
+		
+		System.out.println("Death count = " + deathCount);
+		System.out.println("Time out count = " + timeOutCount);
+		
+		System.out.println("Time spent on death games = " + timeSpentOnDeathGames);
+		System.out.println("Time spent on timeout games = " + timeSpentOnTimeOutGames);
 	}
 
-	//This method takes the Hall of Fame strategies, runs them 500 times each,
-	//sums up their level attained counts (i.e. "Died on level 15 3 times, died on level 16 2 times"),
-	//and writes this info to data/gritty/<currentTimeMillis>/<strategyName>.csv
-	//for use in excel spreadsheet and the like
+	/* This method takes the Hall of Fame strategies, runs them 500 times each,
+	 * sums up their level attained counts (i.e. "Died on level 15 3 times, died on level 16 2 times"),
+	 * and writes this info to data/gritty/<currentTimeMillis>/<strategyName>.csv
+	 * for use in excel spreadsheet and the like.
+	 */
 	public static void getGrittyHallOfFameData () {
-		//TODO: test fun new functionality!
+		long startTime = System.currentTimeMillis();
+		System.out.println("Getting nitty gritty details on Hall of Fame top 20.");
 		strategyToLevelsAttainedMap = new HashMap<>();
 		//Map<AdaptiveStrategy, Map<Integer, Integer>> strategiesToCountMaps = new HashMap<>();
-		String directory = "data/gritty/" + System.currentTimeMillis();
+		String directory = "data/gritty/" + System.currentTimeMillis() + "/";
 		new File(directory).mkdirs();
 		for (AdaptiveStrategy strategy : hallOfFame.getFamers()) {
-			for (int i = 0; i < 500; i++) {
+			for (int i = 0; i < 1000; i++) {
 				new ClimbingGame(strategy).playGame();
 			}
 			List<Integer> levelsAttained = strategyToLevelsAttainedMap.get(strategy);
@@ -201,18 +239,24 @@ public class ClimbingGame {
 					levelsAttainedCountMap.put(level, 1);
 				}
 			}
-			String fileName = directory + "/" + strategy.getName() + ".csv";
+			String fileName = directory + strategy.getName() + ".csv";
 			try (FileWriter fileWriter = new FileWriter(new File(fileName))){
 				List<Integer> levelsAttainedKeys = levelsAttainedCountMap.keySet().stream().collect(Collectors.toList());
 				Collections.sort(levelsAttainedKeys);
 				for (Integer level : levelsAttainedKeys) {
 					fileWriter.write(level + ", " + levelsAttainedCountMap.get(level));
+					fileWriter.write("\n");
 				}
 				fileWriter.close();
 			} catch (IOException ex) {
 				System.err.println("!!Problem writing to file: " + fileName);
 			}
 		}
+		long endTime = System.currentTimeMillis();
+		long duration = endTime - startTime;
+		System.out.println("Took " + duration + " milliseconds to run 20 strategies 1000 times.");
+		System.out.println("Average time to run a game: " + (double)duration / 20000.0);
+		System.out.println("Finished getting gritty.");
 	}
 	
 	//Create 500 new strategies and run them 500 times each	
@@ -277,11 +321,12 @@ public class ClimbingGame {
 				}
 			}
 		}
-		runStrategies(children, 500);
+		System.out.println("Created " + children.size() + " strategies. NOT running them.");
+		//runStrategies(children, 500);
 		Collections.sort(children);
 		System.out.println("highest attainment = " + children.get(0).averageLevelAttained);
 		
-		hallOfFame.addPotentialMembers(children);
+		//hallOfFame.addPotentialMembers(children);
 	}
 	
 	public static void runStrategies (List<AdaptiveStrategy> strategies, int numTimes) {
@@ -343,119 +388,7 @@ public class ClimbingGame {
 		
 		System.out.println("Average attainment = " + av);
 	}
-	
-	@Deprecated
-	public static void geneticsTest () {
-		//Count: 5000
-		for (int i = 0; i < 5000; i++) {
-			new ClimbingGame().playGame();
-		}
-		calcAverageAttainment();
 		
-		List<AdaptiveStrategy> strategies = strategyToLevelsAttainedMap.keySet().stream().collect(Collectors.toList());
-		Collections.sort(strategies);
-		
-		//Count: 500
-		List<AdaptiveStrategy> bestStrategies = takeTopPercent(strategies, 0.1);
-		
-		strategyToLevelsAttainedMap = new HashMap<>();
-		Map<AdaptiveStrategy, List<AdaptiveStrategy>> baseStratToTweaks = new HashMap<>();
-		for (AdaptiveStrategy strategy : bestStrategies) {
-			List<AdaptiveStrategy> tweakedStrats = new ArrayList<>();
-			//Make three children
-			for (int i = 0; i < 3; i++) {
-				tweakedStrats.add(strategy.tweak());
-			}
-			baseStratToTweaks.put(strategy, tweakedStrats);
-		}
-		//Count: 2000
-		List<AdaptiveStrategy> parentsAndKids = new ArrayList<>();
-		for (AdaptiveStrategy baseStrategy : baseStratToTweaks.keySet()) {
-			parentsAndKids.add(baseStrategy);
-			//Play each game 10 times
-			for (int i = 0; i < 10; i++) {
-				new ClimbingGame(baseStrategy).playGame();
-			}
-			//Play each child 10 times
-			for (AdaptiveStrategy child : baseStratToTweaks.get(baseStrategy)) {
-				parentsAndKids.add(child);
-				for (int i = 0; i < 10; i++) {
-					new ClimbingGame(child).playGame();
-				}
-			}
-		}
-		calcAverageAttainment();
-		List<AdaptiveStrategy> top1Percent = takeTopPercent(parentsAndKids, 0.01); //Count: 20
-		List<AdaptiveStrategy> top10Percent = takeTopPercent(parentsAndKids, 0.1); //Count: 200
-		hallOfFame.addPotentialMembers(top1Percent);
-		long time = System.currentTimeMillis();
-		AdaptiveStrategy.writeStrategiesToFile(top1Percent, "data/top1percent_" + time +".txt");
-		AdaptiveStrategy.writeStrategiesToFile(top10Percent, "data/top10percent_" + time + ".txt");
-		
-		if (OUTPUT_LEVEL >= 1) {
-			for (AdaptiveStrategy baseStrategy : baseStratToTweaks.keySet()) {
-				System.out.println("=-=-=-=-=-=-=-=-=-=-=-=-=-=-=");
-				System.out.println("Base Strat: " + baseStrategy);
-				System.out.println("Children:");
-				for (AdaptiveStrategy child : baseStratToTweaks.get(baseStrategy)) {
-					System.out.println("{\n" + child + "\n}");
-				}
-				System.out.println("=-=-=-=-=-=-=-=-=-=-=-=-=-=-=");
-			}
-		}
-		//!!!Unlike other maps the keys here are the children and the values are the parents
-		Map<AdaptiveStrategy, AdaptiveStrategy> mostImprovedChildrenToParents = new HashMap<>();
-		//If we don't find a way to work these back in we risk losing the best strats
-		List<AdaptiveStrategy> parentsWithNoImprovedChildren = new ArrayList<>();
-		for (AdaptiveStrategy baseStrategy : baseStratToTweaks.keySet()) {
-			double bestAverage = baseStrategy.averageLevelAttained;
-			AdaptiveStrategy mostImprovedChild = null;
-			for (AdaptiveStrategy child : baseStratToTweaks.get(baseStrategy)) {
-				if (child.averageLevelAttained > bestAverage) {
-					bestAverage = child.averageLevelAttained;
-					mostImprovedChild = child;
-				}
-			}
-			if (mostImprovedChild != null) {
-				mostImprovedChildrenToParents.put(mostImprovedChild, baseStrategy);
-			} else {
-				parentsWithNoImprovedChildren.add(baseStrategy);
-			}
-		}
-		
-		List<AdaptiveStrategy> mostImprovedChildren = mostImprovedChildrenToParents.keySet().stream().collect(Collectors.toList());
-		//This should be the 50 most improved children of the original top 500 strategies.
-		List<AdaptiveStrategy> bestMostImprovedChildren = takeTopPercent(mostImprovedChildren, 0.1);
-		bestMostImprovedChildren.forEach(child -> {
-			if (OUTPUT_LEVEL >= 0) {
-				AdaptiveStrategy parent = mostImprovedChildrenToParents.get(child);
-				System.out.println("<<<------------------->>>");
-				System.out.println("Parent: " + parent);
-				System.out.println("Child: " + child);
-				System.out.println("Diff: " + AdaptiveStrategy.getDifferences(child, parent));
-				System.out.println("<<<------------------->>>");
-			}
-		});
-	}
-	
-	//fractionToKeep is a percentage double, like 0.6
-	//We don't care about the rounding here (+/- one makes no difference)
-	public static List<AdaptiveStrategy> takeTopPercent (List<AdaptiveStrategy> strategies, double fractionToKeep) {
-		if (fractionToKeep >= 1.0 || fractionToKeep < 0.0) {
-			throw new AssertionError("Bad input: not usable as a fraction.");
-		}
-		Collections.sort(strategies);
-		List<AdaptiveStrategy> bestStrategies = new ArrayList<>();
-		
-		int index = 0;
-		while (bestStrategies.size() < (strategies.size() * fractionToKeep)) {
-			bestStrategies.add(strategies.get(index));
-			index++;
-		}
-		
-		return bestStrategies;
-	}
-	
 	public static void calcAverageAttainment () {
 		strategyToLevelsAttainedMap.keySet().forEach(strat -> {
 			List<Integer> levels = strategyToLevelsAttainedMap.get(strat);
@@ -471,51 +404,9 @@ public class ClimbingGame {
 			strat.averageLevelAttained = average;
 		});
 	}
-	
-	@Deprecated
-	public static void bigMappingTest () {
-		for (int i = 0; i < 3000; i++) {
-			new ClimbingGame().playGame();
-		}
-		System.out.println("====================");
-		System.out.println("Final Report:");
-		
-		
-		calcAverageAttainment();
-		
-		List<AdaptiveStrategy> strategies = strategyToLevelsAttainedMap.keySet().stream().collect(Collectors.toList());
-		Collections.sort(strategies);
-		
-		System.out.println("******");
-		System.out.println("Strategies Ranked:");
-		strategies.forEach(System.out::println);
-		
-		List<AdaptiveStrategy> bestStrategies = takeTopPercent(strategies, 0.1);
-		
-		System.out.println("***====***===****====");
-		System.out.println("Best strats:");
-		bestStrategies.forEach(System.out::println);
-		
-		strategyToLevelsAttainedMap = new HashMap<>();
-		
-		for (AdaptiveStrategy strategy : bestStrategies) {
-			for (int i = 0; i < 100; i++) {
-				new ClimbingGame(strategy).playGame();
-			}
-		}
-		
-		calcAverageAttainment();
-		
-		List<StrategyBase> bestOfBest = strategyToLevelsAttainedMap.keySet().stream().collect(Collectors.toList());
-		Collections.sort(bestOfBest);
-		
-		System.out.println("<><><><><><><><>");
-		System.out.println("Best of the best of the best, sir!");
-		System.out.println("...With honors!");
-		bestOfBest.forEach(System.out::println);
-	}
-	
+
 	public void playGame () {
+		long startTime = System.currentTimeMillis();
 		boolean keepGoing = true;
 		while (keepGoing) {
 			if (OUTPUT_LEVEL >= 2) {
@@ -562,6 +453,9 @@ public class ClimbingGame {
 						System.out.println("Hero died on level " + level + ".");
 					}
 					keepGoing = false;
+					deathCount++;
+					long endTime = System.currentTimeMillis();
+					timeSpentOnDeathGames += (endTime - startTime);
 					break; //Out of the individual round loop
 				}
 				if (roundCount >= 30) {
@@ -569,6 +463,9 @@ public class ClimbingGame {
 						System.out.println("Timed out on combat after 30+ rounds. Hero loses.");
 					}
 					keepGoing = false;
+					timeOutCount++;
+					long endTime = System.currentTimeMillis();
+					timeSpentOnTimeOutGames += (endTime - startTime);
 					break;
 				}
 				roundCount++;

@@ -29,6 +29,9 @@ public class Hero {
 	
 	private boolean statusImmune = false;
 	
+	public static long ribbonsPlayedCount = 0;
+	public static long ribbonsHelpedCount = 0;
+	
 	public Hero () {
 		maxHealth = 40;
 		currentHealth = 40;
@@ -79,6 +82,7 @@ public class Hero {
 			powerBlockPerTurn += powerCard.getMagnitude();
 		} else if (powerCard.getEffectType() == EffectType.STATUS_IMMUNE) {
 			statusImmune = true;
+			ribbonsPlayedCount++;
 		}
 		if (ClimbingGame.OUTPUT_LEVEL >= 4) {
 			System.out.println("Added new power: " + powerCard);
@@ -118,6 +122,7 @@ public class Hero {
 			message = "\tHero becomes more vulnerable to attacks. Now taking " + vulnerableDamageFactor + " of base.";
 		} else {
 			message = "\tHero dodges vulnerability increase with Status Immune Ribbon";
+			ribbonsHelpedCount++;
 		}
 		if (ClimbingGame.OUTPUT_LEVEL >= 4) {
 			System.out.println(message);
@@ -138,6 +143,7 @@ public class Hero {
 			}
 		} else {
 			message = "\tHero dodges weakness increase with Status Immune Ribbon";
+			ribbonsHelpedCount++;
 		}
 		if (ClimbingGame.OUTPUT_LEVEL >= 4) {
 			System.out.println(message);

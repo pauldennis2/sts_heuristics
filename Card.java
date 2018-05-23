@@ -70,7 +70,7 @@ public class Card implements Comparable<Card>{
 			CARD_MAP.put("dexPerTurn", new Card(1, EffectType.DEX_PER_TURN, 1, true));
 			CARD_MAP.put("staticStr", new Card(3, EffectType.STRENGTH, 1, true));
 			CARD_MAP.put("staticDex", new Card(3, EffectType.DEXTERITY, 1, true));
-			CARD_MAP.put("ribbon", new Card(0, EffectType.STATUS_IMMUNE, 1, true));
+			CARD_MAP.put("ribbon", new Card(0, EffectType.STATUS_IMMUNE, 1, true)); 
 			CARD_MAP.put("healPerTurn", new Card(3, EffectType.HEAL_PER_TURN, 1, true));
 			CARD_MAP.put("blockPerTurn", new Card(4, EffectType.BLOCK_PER_TURN, 1, true));
 			
@@ -113,7 +113,6 @@ public class Card implements Comparable<Card>{
 				isBlock = true;
 				break;
 			default:
-				throw new AssertionError("Not one of the standard effects. Bad constructor usage.");
 		}
 		
 		level = 0;
