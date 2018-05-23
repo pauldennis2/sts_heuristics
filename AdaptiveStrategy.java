@@ -22,7 +22,7 @@ public class AdaptiveStrategy extends StrategyBase implements Tweakable {
 
 	//A Map between Conditions (which make dynamic decisions based on game state)
 	//and List<String> representing how we will change our preferences if the condition is true
-	private Map<Conditional, List<String>> conditionsAndResultsMap;	
+	//private Map<Conditional, List<String>> conditionsAndResultsMap;	
 	
 	private transient Hero hero;
 	private transient AdaptiveStrategy old;
@@ -50,8 +50,9 @@ public class AdaptiveStrategy extends StrategyBase implements Tweakable {
 	public final static List<String> HLPS = Arrays.asList("addCard", "upgradeCard", "removeCard", "maxHp");
 	//public final static List<String> CARDS = Arrays.asList("heal", "strikeDefend", "strikeExhaust", "healBlock");
 	
-	List<CardOption> cardValues;
-	Map<Conditional, List<CardOption>> conditionsAndValuesMap;
+	Map<String, Double> cardValues;
+	Map<String, Double> hlpValues;
+	Map<Conditional, Map<String, Double>> conditionsAndValuesMap;
 	
 	//For the difference function
 	private AdaptiveStrategy () {
@@ -62,32 +63,26 @@ public class AdaptiveStrategy extends StrategyBase implements Tweakable {
 	//Create a new random strategy
 	public AdaptiveStrategy (Hero hero) {
 		this.hero = hero;
-		Collections.shuffle(highLevelPrefs);
-		Collections.shuffle(cardPrefs);
 		name = getNewName();
-		
 		Random r = new Random();
-		conditionsAndResultsMap = new HashMap<>();
 		
-		cardValues = new ArrayList<>();
+		cardValues = new HashMap<>();
+		hlpValues = new HashMap<>();
+		cardPrefs.forEach(cardName -> cardValues.put(cardName, r.nextDouble()));
+		highLevelPrefs.forEach(hlpref -> hlpValues.put(hlpref, r.nextDouble()));
+		
 		conditionsAndValuesMap = new HashMap<>();
-		
-		for (String cardName : Card.ALL_CARD_NAMES) {
-			cardValues.add(new CardOption(cardName, r.nextDouble()));
-		}
 
 		//Create 0-2 high level pref conditions and 0-2 card pref conditions
 		int conditionsCount = 0;
 		while (r.nextBoolean() || r.nextBoolean()) {
-			//Alter High level prefs
-			List<String> alteredHLPrefs = new ArrayList<>(highLevelPrefs);
-			Collections.shuffle(alteredHLPrefs);
-			//If the condition doesn't actually make any changes don't add it
-			if (alteredHLPrefs.equals(highLevelPrefs)) {
-				continue;
-			}
+			Map<String, Double> values = getRandomValues(highLevelPrefs);
 			
-			conditionsAndResultsMap.put(new SingleCondition(r, true), alteredHLPrefs);
+			if (r.nextBoolean() || r.nextBoolean()) {
+				conditionsAndValuesMap.put(new SingleCondition(r, true), values);
+			} else {
+				conditionsAndValuesMap.put(new CompositeCondition(true), values);
+			}
 			
 			conditionsCount++;
 			if (conditionsCount >= 2) {
@@ -97,13 +92,13 @@ public class AdaptiveStrategy extends StrategyBase implements Tweakable {
 		conditionsCount = 2;//A little weird but we don't want 4 card conditions
 		while (r.nextBoolean()) {
 			//Alter card prefs
-			List<String> alteredCardPrefs = new ArrayList<>(cardPrefs);
-			Collections.shuffle(alteredCardPrefs);
-			if (alteredCardPrefs.equals(cardPrefs)) {
-				continue;
-			}
+			Map<String, Double> values = getRandomValues(cardPrefs);
 			
-			conditionsAndResultsMap.put(new SingleCondition(r, false), alteredCardPrefs);
+			if (r.nextBoolean() || r.nextBoolean()) {
+				conditionsAndValuesMap.put(new SingleCondition(r, false), values);
+			} else {
+				conditionsAndValuesMap.put(new CompositeCondition(false), values);
+			}
 			
 			conditionsCount++;
 			if (conditionsCount >= 4) {
@@ -113,11 +108,24 @@ public class AdaptiveStrategy extends StrategyBase implements Tweakable {
 		validate();
 	}
 	
+	/*Helper method. Given a list, will return a map with at least one
+	 * of those values mapped to a random Double
+	 */
+	private static Map<String, Double> getRandomValues (List<String> inputList) {
+		Random r = new Random();
+		Map<String, Double> values = new HashMap<>();
+		do {
+			String prefName = inputList.get(r.nextInt(inputList.size() - 1));
+			values.put(prefName, r.nextDouble());
+		} while (r.nextBoolean());
+		return values;
+	}
+	
 	@Override
 	public AdaptiveStrategy tweak () {
 		AdaptiveStrategy newStrat = new AdaptiveStrategy();
 		newStrat.isDiff = false;
-		newStrat.conditionsAndResultsMap = new HashMap<>(this.conditionsAndResultsMap);
+		newStrat.conditionsAndValuesMap = new HashMap<>(this.conditionsAndValuesMap);
 		newStrat.highLevelPrefs = new ArrayList<>(this.highLevelPrefs);
 		newStrat.cardPrefs = new ArrayList<>(cardPrefs);
 		newStrat.name = getChildName(this.name);
@@ -126,37 +134,44 @@ public class AdaptiveStrategy extends StrategyBase implements Tweakable {
 		
 		//Half of the time we'll change a condition
 		//Other half we'll change basic preferences
-		int numConditions = conditionsAndResultsMap.size();
+		int numConditions = conditionsAndValuesMap.size();
 		if (r.nextBoolean() && numConditions > 0) {//Change conditions
 			//Half of the time we will tweak an existing condition
 			//Other half we will add or remove a condition
 			if (r.nextBoolean()) { //Tweak a condition
-				List<Conditional> conditions = conditionsAndResultsMap.keySet().stream().collect(Collectors.toList());
+				List<Conditional> conditions = conditionsAndValuesMap.keySet().stream().collect(Collectors.toList());
 				Conditional toTweak = conditions.get(r.nextInt(conditions.size()));
-				List<String> preferences = conditionsAndResultsMap.get(toTweak);
+				Map<String, Double> valuesToTweak = conditionsAndValuesMap.get(toTweak);
 				if (r.nextBoolean()) {//By keeping preferences the same but re-rolling the condition itself
 					Conditional tweaked = toTweak.tweak();
-					newStrat.conditionsAndResultsMap.remove(toTweak);
-					newStrat.conditionsAndResultsMap.put(tweaked, preferences);
+					newStrat.conditionsAndValuesMap.remove(toTweak);
+					newStrat.conditionsAndValuesMap.put(tweaked, valuesToTweak);
 				} else {//By changing preferences but leaving the condition itself unchanged
-					Collections.shuffle(preferences);
-					newStrat.conditionsAndResultsMap.put(toTweak, preferences);
+					//Building it into an OptionValue list sidesteps the ConcurrencyModification issue
+					//we'd see otherwise.
+					List<OptionValue> optionValues = new ArrayList<>();
+					valuesToTweak.keySet().stream()
+						.filter(prefName -> r.nextBoolean()) //Randomly toss out ~half
+						.forEach(prefName -> optionValues.add(new OptionValue(prefName, valuesToTweak.get(prefName))));
+					for (OptionValue optionValue : optionValues) {
+						valuesToTweak.put(optionValue.getOption(), r.nextDouble());
+					}
+					newStrat.conditionsAndValuesMap.put(toTweak, valuesToTweak);
 				}
 			} else { //Add/remove a condition
 				if (r.nextBoolean() || numConditions < 2) { //Add a condition
 					boolean altersHighLevelPrefs = r.nextBoolean();
 					Conditional condition = new SingleCondition (r, altersHighLevelPrefs);
-					List<String> preferences;
+					Map<String, Double> values;
 					if (altersHighLevelPrefs) {
-						preferences = new ArrayList<>(highLevelPrefs);
+						values = getRandomValues(highLevelPrefs);
 					} else {
-						preferences = new ArrayList<>(cardPrefs);
+						values = getRandomValues(cardPrefs);
 					}
-					Collections.shuffle(preferences);
-					newStrat.conditionsAndResultsMap.put(condition, preferences);
+					newStrat.conditionsAndValuesMap.put(condition, values);
 				} else if (numConditions >= 2) { //Remove a condition
-					Conditional cond = conditionsAndResultsMap.keySet().stream().collect(Collectors.toList()).get(0);
-					newStrat.conditionsAndResultsMap.remove(cond);
+					Conditional cond = conditionsAndValuesMap.keySet().stream().collect(Collectors.toList()).get(0);
+					newStrat.conditionsAndValuesMap.remove(cond);
 				}
 			}
 		} else {//Change base preferences
@@ -176,7 +191,7 @@ public class AdaptiveStrategy extends StrategyBase implements Tweakable {
 		this.momsName = mom.name;
 		this.name = get2ParentChildName(dadsName, momsName);
 		Random r = new Random();
-		conditionsAndResultsMap = new HashMap<>();
+		conditionsAndValuesMap = new HashMap<>();
 		
 		if (r.nextBoolean()) {
 			this.highLevelPrefs = new ArrayList<>(dad.highLevelPrefs);
@@ -189,23 +204,25 @@ public class AdaptiveStrategy extends StrategyBase implements Tweakable {
 			this.cardPrefs = new ArrayList<>(mom.cardPrefs);
 		}
 		
-		//Keep 75% (on average) of each parent's conditions, then discard 25% of total
-		//0.75 + 0.75 = 1.5,    1.5 * 0.75 = 1.125
-		//This means a 12% average increase in conditions, which is about right
-		Map<Conditional, List<String>> newConditions = new HashMap<>();
-		for (Conditional condition : dad.conditionsAndResultsMap.keySet()) {
+		/*Keep 75% (on average) of each parent's conditions, then discard 25% of total
+		 * 0.75 + 0.75 = 1.5,    1.5 * 0.75 = 1.125
+		 * This means a 12% average increase in conditions, which is about right
+		 * (We want child strategies to generally move toward being more complex)
+		 */
+		Map<Conditional, Map<String, Double>> newConditions = new HashMap<>();
+		for (Conditional condition : dad.conditionsAndValuesMap.keySet()) {
 			if (r.nextDouble() > 0.25) {
-				newConditions.put(condition, dad.conditionsAndResultsMap.get(condition));
+				newConditions.put(condition, dad.conditionsAndValuesMap.get(condition));
 			}
 		}
-		for (Conditional condition : mom.conditionsAndResultsMap.keySet()) {
+		for (Conditional condition : mom.conditionsAndValuesMap.keySet()) {
 			if (r.nextDouble() > 0.25) {
-				newConditions.put(condition, mom.conditionsAndResultsMap.get(condition));
+				newConditions.put(condition, mom.conditionsAndValuesMap.get(condition));
 			}
 		}
 		for (Conditional condition : newConditions.keySet()) {
 			if (r.nextDouble() > 0.25) {
-				this.conditionsAndResultsMap.put(condition, newConditions.get(condition));
+				this.conditionsAndValuesMap.put(condition, newConditions.get(condition));
 			}
 		}
 		
@@ -450,46 +467,60 @@ public class AdaptiveStrategy extends StrategyBase implements Tweakable {
 
 	@Override 
 	public List<String> getHighLevelPrefs () {
-		DeckReport report = new DeckReport(hero);
-		List<Conditional> liveConditions = conditionsAndResultsMap.keySet().stream()
-			.filter(Conditional::altersHighLevelPrefs)
-			.filter(condition -> condition.evaluate(report))
-			.collect(Collectors.toList());
-		//Sort in descending order of priority
-		if (liveConditions.size() >= 1) {
-			Collections.sort(liveConditions, (cond1, cond2) -> {
-				return cond2.getPriorityLevel() - cond1.getPriorityLevel();
-			});
-			if (ClimbingGame.OUTPUT_LEVEL >= 3) {
-				System.out.println("\tAll live conditions:");
-				liveConditions.forEach(condition -> System.out.println("\t\t" + condition));
-			}
-			Conditional highestPrio = liveConditions.get(0);
-			return conditionsAndResultsMap.get(highestPrio);
-		}
-		return highLevelPrefs;
+		return getPreferences(true);
 	}
 	
 	@Override 
 	public List<String> getCardPrefs () {
+		return getPreferences(false);
+	}
+	
+	private List<String> getPreferences (boolean highLevel) {
 		DeckReport report = new DeckReport(hero);
-		List<Conditional> liveConditions = conditionsAndResultsMap.keySet().stream()
-			.filter(condition -> !condition.altersHighLevelPrefs())
+		List<Conditional> liveConditions = conditionsAndValuesMap.keySet().stream()
+			.filter(condition -> condition.altersHighLevelPrefs() == highLevel)
 			.filter(condition -> condition.evaluate(report))
 			.collect(Collectors.toList());
-		//Sort in descending order of priority
+		Map<String, Double> tempValues;
 		if (liveConditions.size() >= 1) {
-			Collections.sort(liveConditions, (cond1, cond2) -> {
-				return cond2.getPriorityLevel() - cond1.getPriorityLevel();
-			});
+			//Sort in ascending order of priority
+			Collections.sort(liveConditions);
 			if (ClimbingGame.OUTPUT_LEVEL >= 3) {
 				System.out.println("\tAll live conditions:");
 				liveConditions.forEach(condition -> System.out.println("\t\t" + condition));
 			}
-			Conditional highestPrio = liveConditions.get(0);
-			return conditionsAndResultsMap.get(highestPrio);
+			tempValues = new HashMap<>();
+			Map<String, Double> optionValues;
+			//Copy over the values
+			if (highLevel) {
+				optionValues = hlpValues;
+			} else {
+				optionValues = cardValues;
+			}
+			optionValues.keySet().forEach(optionName -> tempValues.put(optionName, optionValues.get(optionName)));
+			//Edit them based on conditions
+			for (Conditional condition : liveConditions) {
+				Map<String, Double> overwriteValues = conditionsAndValuesMap.get(condition);
+				for (String optionName : overwriteValues.keySet()) {
+					tempValues.put(optionName, overwriteValues.get(optionName));
+				}
+			}
+			
+		} else {
+			//If there were no active rules, use simpler logic
+			if (highLevel) {
+				tempValues = hlpValues;
+			} else {
+				tempValues = cardValues;
+			}
 		}
-		return cardPrefs;
+		
+		List<OptionValue> listToSort = new ArrayList<>();
+		for (String optionName : tempValues.keySet()) {
+			listToSort.add(new OptionValue(optionName, tempValues.get(optionName)));
+		}
+		Collections.sort(listToSort);
+		return listToSort.stream().map(OptionValue::getOption).collect(Collectors.toList());
 	}
 	
 	@Override

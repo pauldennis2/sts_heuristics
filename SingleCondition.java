@@ -61,9 +61,9 @@ public class SingleCondition implements Conditional {
 		} else {
 			byRatio = false;
 		}
-		if (words[words.length - 1].contains("HLP")) {
+		if (words[words.length - 1].contains("*HLP*")) {
 			altersHighLevelPrefs = true;
-		} else if (words[words.length - 1].contains("Cards")) {
+		} else if (words[words.length - 1].contains("*Cards*")) {
 			altersHighLevelPrefs = false;
 		} else {
 			altersHighLevelPrefs = null;
@@ -73,6 +73,9 @@ public class SingleCondition implements Conditional {
 	}
 	
 	public static void main(String[] args) {
+	}
+	
+	public static void testTextBasedConditionCreation () {
 		Scanner inputScanner = new Scanner(System.in);
 		while (true) {
 			System.out.println("Please input condition string:");
@@ -249,6 +252,12 @@ public class SingleCondition implements Conditional {
 			return this.toString().equals(other.toString());
 		}
 		return false;
+	}
+	
+	//A list will be sorted by default in Ascending order of priority
+	@Override
+	public int compareTo (Conditional other) {
+		return this.priorityLevel - other.getPriorityLevel();
 	}
 	
 	public boolean isGreaterThan() {

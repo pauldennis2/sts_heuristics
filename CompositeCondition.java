@@ -15,6 +15,19 @@ public class CompositeCondition implements Conditional {
 	private int priorityLevel;
 	private Boolean altersHighLevelPrefs;
 	
+	public CompositeCondition (Boolean altersHighLevelPrefs)  {
+		this.altersHighLevelPrefs = altersHighLevelPrefs;
+		Random r = new Random();
+		if (r.nextBoolean()) {
+			first = new SingleCondition(r, null);
+		} else {
+			Boolean b = null;
+			first = new CompositeCondition(b);
+		}
+		second = new SingleCondition(r, null);
+		isAnd = r.nextBoolean();
+	}
+	
 	public CompositeCondition(Conditional first, Conditional second, boolean isAnd, Boolean altersHighLevelPrefs) {
 		super();
 		this.first = first;
@@ -24,15 +37,149 @@ public class CompositeCondition implements Conditional {
 		
 		priorityLevel = 1;
 	}
+	/*
+	public CompositeCondition (String text) {
+		char[] charArray = text.toCharArray();
+		String textNotInsideParens = "";
+		int openParenCount = 0;
+		for (int i = 0; i < charArray.length; i++) {
+			if (charArray[i] == '(') {
+				openParenCount++;
+			} else if (charArray[i] == ')') {
+				openParenCount--;
+			} else if (openParenCount == 0){
+				textNotInsideParens += charArray[i];
+			}
+		}
+		String splitter;
+		if (textNotInsideParens.contains("&&")) {
+			splitter = "&&";
+			isAnd = true;
+		} else if (textNotInsideParens.contains("||")) {
+			splitter = "\\|\\|";
+			isAnd = false;
+		} else {
+			throw new AssertionError("Cannot parse this text to a compositeCondition: " + text);
+		}
+		String[] parts;
+		if (text.contains("-")) {
+			String notTheLastBit = text.split("-")[0].trim();
+			parts = notTheLastBit.split(splitter);
+		} else {
+			parts = text.split(splitter);
+		}
+		int index = 0;
+		for (String part : parts) {
+			part = part.trim();
+			if (!part.startsWith("(") || !part.endsWith(")")) {
+				System.err.println("Failed with overall input: " + text);
+				System.err.println("Parts were:");
+				//System.err.println(parts);
+				for (String p2 : parts) {
+					System.err.println(p2);
+				}
+				throw new AssertionError("Bad format. Expected parens at beginning and end. String was *" + part + "*");
+			}
+			String conditionText = part.substring(1, part.length() - 1);
+			if (conditionText.contains("&&") || conditionText.contains("||")) {
+				if (index == 0) {
+					first = new CompositeCondition(conditionText);
+				} else {
+					second = new CompositeCondition(conditionText);
+				}
+			} else {
+				conditionText = conditionText.replaceAll("[()]", "");
+				if (index == 0) {
+					first = new SingleCondition(conditionText);
+				} else {
+					second = new SingleCondition(conditionText);
+				}
+			}
+			index++;
+		}
+		if (text.contains("*HLP*")) {
+			altersHighLevelPrefs = true;
+		} else if (text.contains("*Cards*")) {
+			altersHighLevelPrefs = false;
+		} else {
+			altersHighLevelPrefs = null;
+		}
+	}*/
+	
+	public CompositeCondition (String text) {
+		char[] charArray = text.toCharArray();
+		StringBuilder textNotInsideParens = new StringBuilder();
+		StringBuilder firstSb = new StringBuilder();
+		StringBuilder secondSb = new StringBuilder();
+		int openParenCount = 0;
+		boolean onFirstString = true;
+		for (int i = 0; i < charArray.length; i++) {
+			if (onFirstString) {
+				firstSb.append(charArray[i]);
+			} else if (openParenCount == 0 && charArray[i] != '(') {
+				textNotInsideParens.append(charArray[i]);
+			} else {
+				secondSb.append(charArray[i]);
+			}
+			if (charArray[i] == '(') {
+				openParenCount++;
+			} else if (charArray[i] == ')') {
+				openParenCount--;
+				if (openParenCount == 0) {
+					onFirstString = false;
+				}
+			} 
+		}
+		String firstString = firstSb.toString();
+		String secondString = secondSb.toString();
+		//Remove the parentheses
+		String firstText = firstString.substring(1, firstString.length() - 1);
+		if (firstText.contains("&&") || firstText.contains("||")) {
+			first = new CompositeCondition(firstText);
+		} else {
+			first = new SingleCondition(firstText);
+		}
+		String secondText = secondString.substring(1, secondString.length() - 1);
+		if (secondText.contains("&&") || secondText.contains("||")) {
+			second = new CompositeCondition(secondText);
+		} else {
+			second = new SingleCondition(secondText);
+		}
+		if (text.contains("*HLP*")) {
+			altersHighLevelPrefs = true;
+		} else if (text.contains("*Cards*")) {
+			altersHighLevelPrefs = false;
+		} else {
+			altersHighLevelPrefs = null;
+		}
+		if (textNotInsideParens.toString().contains("&&")) {
+			isAnd = true;
+		} else if (textNotInsideParens.toString().contains("||")) {
+			isAnd = false;
+		} else {
+			throw new AssertionError("Missing boolean logic (&& or ||)");
+		}
+	}
 	
 	public static void main(String[] args) {
-
-		//Condition to control taking a status immunity or not
 		
-		SingleCondition condition1 = new SingleCondition("numRibbons < 1.1");
-		SingleCondition condition2 = new SingleCondition("level > 10");
-		CompositeCondition cc = new CompositeCondition(condition1, condition2, true, false);
+		for (int i = 0; i < 1000; i++) {
+			CompositeCondition cc = new CompositeCondition(false);
+			CompositeCondition rebuilt = new CompositeCondition(cc.toString());
+			if (!cc.equals(rebuilt)) {
+				System.out.println("Not equal!");
+				System.out.println(cc);
+				System.out.println(rebuilt);
+				System.out.println("-------");
+			}
+			
+		}
+		/*String text = "(((level < 3.4) || (powerHealPerTurn < numRibbons * 1.3)) && (averageHealPerCard > maxHp)) || (powerBlockPerTurn < nonUpgradedCards * 2.4)";
+		CompositeCondition cc = new CompositeCondition(text);
 		System.out.println(cc);
+		System.out.println(text);*/
+		System.out.println("Done");
+		
 	}
 	
 	@Override
@@ -74,12 +221,27 @@ public class CompositeCondition implements Conditional {
 		String response = "(" + first.toString() + ") " + boolPart + " (" + second.toString() + ")";
 		if (altersHighLevelPrefs != null) {
 			if (altersHighLevelPrefs) {
-				response += " - (HLP)";
+				response += " - *HLP*";
 			} else {
-				response += " - (Cards)";
+				response += " - *Cards*";
 			}
 		}
 		return response;
+	}
+	
+	@Override
+	public boolean equals (Object obj) {
+		if (!(obj instanceof CompositeCondition)) {
+			return false;
+		}
+		CompositeCondition other = (CompositeCondition) obj;
+		return this.toString().equals(other.toString());
+	}
+	
+	//A list will be sorted by default in Ascending order of priority
+	@Override
+	public int compareTo (Conditional other) {
+		return this.priorityLevel - other.getPriorityLevel();
 	}
 	
 	@Override

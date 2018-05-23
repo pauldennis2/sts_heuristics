@@ -4,19 +4,25 @@
  */
 package sts_heuristics;
 
-public class CardOption implements Comparable<CardOption> {
+//Represents the pair of an option (String) and value (Double)
+public class OptionValue implements Comparable<OptionValue> {
 
-	private String cardName;
+	private String option;
 	private double value;
 	
-	public CardOption(String cardName, double value) {
+	public OptionValue(String option, double value) {
 		super();
-		this.cardName = cardName;
+		this.option = option;
 		this.value = value;
+	}
+	
+	public OptionValue (OptionValue toCopy) {
+		this.option = toCopy.option;
+		this.value = toCopy.value;
 	}
 
 	@Override
-	public int compareTo (CardOption other) {
+	public int compareTo (OptionValue other) {
 		if (this.value > other.value) {
 			return 1;
 		} else if (this.value < other.value) {
@@ -28,9 +34,9 @@ public class CardOption implements Comparable<CardOption> {
 	public double getValue () {
 		return value;
 	}
-	
-	public String getCardName () {
-		return cardName;
+
+	public String getOption () {
+		return option;
 	}
 	
 	public void setValue (double value) {
