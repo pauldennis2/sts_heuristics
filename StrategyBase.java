@@ -9,8 +9,8 @@ import java.util.List;
 
 public class StrategyBase implements Comparable<StrategyBase> {
 	
-	protected List<String> cardPrefs;
-	protected List<String> highLevelPrefs;
+	private List<String> cardPrefs;
+	private List<String> highLevelPrefs;
 	
 	double averageLevelAttained;
 	

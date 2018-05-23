@@ -8,14 +8,11 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-
-import static sts_heuristics.EffectType.*;
 
 public class ClimbingGame {
 	
@@ -119,6 +116,7 @@ public class ClimbingGame {
 			Collections.shuffle(regCards);
 			Collections.shuffle(powerCards);
 			List<String> options = new ArrayList<>();
+			//In any given round we get to choose between two regular cards and a power.
 			options.add(regCards.get(0));
 			options.add(regCards.get(1));
 			options.add(powerCards.get(0));
