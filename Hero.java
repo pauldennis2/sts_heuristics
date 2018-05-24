@@ -27,10 +27,13 @@ public class Hero {
 	private double vulnerableDamageFactor = 1.0;
 	private double weakDamageFactor = 1.0;
 	
+	private int poisonCount = 0;
+	
 	private boolean statusImmune = false;
 	
 	public static long ribbonsPlayedCount = 0;
 	public static long ribbonsHelpedCount = 0;
+	public static long upgRibbonHelpedCount = 0;
 	
 	public Hero () {
 		maxHealth = 40;
@@ -38,13 +41,13 @@ public class Hero {
 		blockHp = 0;
 		
 		deck = new ArrayList<>();
-		deck.add(new Card(5, ATTACK));
-		deck.add(new Card(5, ATTACK));
-		deck.add(new Card(5, ATTACK));
+		deck.add(new Card(6, ATTACK));
+		deck.add(new Card(6, ATTACK));
+		deck.add(new Card(6, ATTACK));
 		
-		deck.add(new Card(5, BLOCK));
-		deck.add(new Card(5, BLOCK));
-		deck.add(new Card(5, BLOCK));
+		deck.add(new Card(6, BLOCK));
+		deck.add(new Card(6, BLOCK));
+		deck.add(new Card(6, BLOCK));
 	}
 	
 	public Hero (AdaptiveStrategy strategy) {
@@ -83,9 +86,17 @@ public class Hero {
 		} else if (powerCard.getEffectType() == EffectType.STATUS_IMMUNE) {
 			statusImmune = true;
 			ribbonsPlayedCount++;
+			if (powerCard.isUpgraded()) {
+				if (vulnerableDamageFactor != 1.0 || weakDamageFactor != 1.0 || poisonCount != 0) {
+					upgRibbonHelpedCount++;
+				}
+				vulnerableDamageFactor = 1.0;
+				weakDamageFactor = 1.0;
+				poisonCount = 0;
+			}
 		}
 		if (ClimbingGame.OUTPUT_LEVEL >= 4) {
-			System.out.println("Added new power: " + powerCard);
+			System.out.println("\tAdded new power: " + powerCard);
 		}
 	}
 	
@@ -95,10 +106,11 @@ public class Hero {
 		blockHp += powerBlockPerTurn;
 		strength += powerStrPerTurn;
 		dexterity += powerDexPerTurn;
+		takeDamage(poisonCount);
 	}
 	
 	//Called after combat is over to reset stats
-	public void endCombat () {
+	public void endCombat (int level) {
 		if (ClimbingGame.OUTPUT_LEVEL >= 4) {
 			System.out.println("\tStats reset.");
 		}
@@ -111,8 +123,11 @@ public class Hero {
 		
 		statusImmune = false;
 		
-		vulnerableDamageFactor = 1.0;
-		weakDamageFactor = 1.0;
+		if (level < 50) {
+			vulnerableDamageFactor = 1.0;
+			weakDamageFactor = 1.0;
+			poisonCount = 0;
+		}
 	}
 	
 	public void increaseVulnerability (double amount) {
@@ -143,6 +158,20 @@ public class Hero {
 			}
 		} else {
 			message = "\tHero dodges weakness increase with Status Immune Ribbon";
+			ribbonsHelpedCount++;
+		}
+		if (ClimbingGame.OUTPUT_LEVEL >= 4) {
+			System.out.println(message);
+		}
+	}
+	
+	public void increasePoison () {
+		String message;
+		if (!statusImmune) {
+			poisonCount++;
+			message = "\tHero was poisoned. Now at " + poisonCount + " poison.";
+		} else {
+			message = "\tHero dodges poison effect with Status Immune Ribbon";
 			ribbonsHelpedCount++;
 		}
 		if (ClimbingGame.OUTPUT_LEVEL >= 4) {

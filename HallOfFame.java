@@ -26,8 +26,10 @@ public class HallOfFame {
 	private List<AdaptiveStrategy> famers;
 	private List<AdaptiveStrategy> potentials;
 	
+	static boolean TEST_MODE = false;
+	static boolean SAVE_OLD_HOF = true;
+	
 	public HallOfFame () {
-		//String directory = "data/gritty/" + System.currentTimeMillis();
 		new File("data/hall_of_fame/old/").mkdirs();
 		famers = AdaptiveStrategy.readStrategiesFromFile(FAMERS_FILE_LOC);
 		potentials = AdaptiveStrategy.readStrategiesFromFile(POTENTIALS_FILE_LOC);
@@ -35,7 +37,11 @@ public class HallOfFame {
 			potentials = new ArrayList<>(famers);
 		}
 		determineMinAttainmentNeeded();
-		writeOldFamers();
+		if (SAVE_OLD_HOF) {
+			writeOldFamers();
+		} else {
+			System.out.println("In Test Mode - not making any file changes.");
+		}
 	}
 	
 	private HallOfFame (String reason) {
@@ -104,18 +110,20 @@ public class HallOfFame {
 		
 	}
 	
-	//Write out the top 20 and push any formers to formers
-	//formers nyi
+	//Write out the top 20 and top 200
 	public void close () {
 		System.out.println("Hall of Fame closing down for the day...");
 		truncateLists();
 		
-		System.out.println("Writing " + famers.size() + " famers to file.");
-		AdaptiveStrategy.writeStrategiesToFile(famers, FAMERS_FILE_LOC);
-		
-		System.out.println("Writing " + potentials.size() + " potentials to file.");
-		AdaptiveStrategy.writeStrategiesToFile(potentials, POTENTIALS_FILE_LOC);
-		
+		if (TEST_MODE) {
+			System.out.println("Not making any changes to file.");
+		} else {
+			System.out.println("Writing " + famers.size() + " famers to file.");
+			AdaptiveStrategy.writeStrategiesToFile(famers, FAMERS_FILE_LOC);
+			
+			System.out.println("Writing " + potentials.size() + " potentials to file.");
+			AdaptiveStrategy.writeStrategiesToFile(potentials, POTENTIALS_FILE_LOC);
+		}
 		//Close should only be called when we're done.
 		//So if someone tries to access these after close, we'll fail loudly
 		famers = null;

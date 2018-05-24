@@ -50,9 +50,9 @@ public class AdaptiveStrategy extends StrategyBase implements Tweakable {
 	public final static List<String> HLPS = Arrays.asList("addCard", "upgradeCard", "removeCard", "maxHp");
 	public final static List<String> CARDS = Card.ALL_CARD_NAMES;
 	
-	Map<String, Double> cardValues;
-	Map<String, Double> hlpValues;
-	Map<Conditional, Map<String, Double>> conditionsAndValuesMap;
+	private Map<String, Double> cardValues;
+	private Map<String, Double> hlpValues;
+	private Map<Conditional, Map<String, Double>> conditionsAndValuesMap;
 	
 	//For the difference function
 	private AdaptiveStrategy () {
@@ -363,6 +363,17 @@ public class AdaptiveStrategy extends StrategyBase implements Tweakable {
 		//TODO fix
 		throw new AssertionError("fix (add values in)");
 	}
+ 	
+ 	public static AdaptiveStrategy buildRibbonStrat () {
+ 		AdaptiveStrategy ribbonStrat = new AdaptiveStrategy(new Hero());
+ 		ribbonStrat.conditionsAndValuesMap = new HashMap<>();
+ 		CompositeCondition cc = new CompositeCondition("(level > 10) && (numRibbons < 1.0)");
+ 		Map<String, Double> valuesMap = new RoundedDoubleMap();
+ 		valuesMap.put("addCard", 2.0);
+ 		valuesMap.put("ribbon", 2.0);
+ 		ribbonStrat.conditionsAndValuesMap.put(cc, valuesMap);
+ 		return ribbonStrat;
+ 	}
 	
 	public static void testWriteToFile () {
 		List<AdaptiveStrategy> strategies = new ArrayList<>();
@@ -734,5 +745,13 @@ public class AdaptiveStrategy extends StrategyBase implements Tweakable {
 	
 	public String getName () {
 		return name;
-	}	
+	}
+	
+	public Map<String, Double> getCardValues () {
+		return cardValues;
+	}
+	
+	public Map<String, Double> getHlpValues () {
+		return hlpValues;
+	}
 }

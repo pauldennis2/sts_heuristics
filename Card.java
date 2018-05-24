@@ -58,6 +58,8 @@ public class Card implements Comparable<Card>{
 		this.isStatusImmunity = copy.isStatusImmunity;
 		this.isStatIncrease = copy.isStatIncrease;
 		this.isStrengthIncrease = copy.isStrengthIncrease;
+		
+		this.effectType = copy.effectType;
 	}
 	
 	private static final Map<String, Card> CARD_MAP = new HashMap<>();
@@ -75,7 +77,7 @@ public class Card implements Comparable<Card>{
 			CARD_MAP.put("blockPerTurn", new Card(4, EffectType.BLOCK_PER_TURN, 1, true));
 			
 			CARD_MAP.put("strikeDefend", new Card(4, BLOCK_AND_ATTACK, 1));
-			CARD_MAP.put("heal", new Card(5, HEAL, 1));
+			CARD_MAP.put("heal", new Card(6, HEAL, 1));
 			CARD_MAP.put("healBlock", new Card(4, HEAL_AND_BLOCK, 1));
 			Card exhaust = new Card (10, ATTACK, 1);
 			exhaust.setExhaust(true);
@@ -89,7 +91,7 @@ public class Card implements Comparable<Card>{
 	
 	public Card (int magnitude, EffectType effectType) {
 		this.magnitude = magnitude;
-		
+		this.effectType = effectType;
 		isAttack = false;
 		isBlock = false;
 		isHeal = false;
@@ -163,7 +165,6 @@ public class Card implements Comparable<Card>{
 		default:
 			throw new AssertionError("Bad effect type for power constructor.");
 		}
-		this.effectType = effectType;
 		this.isPower = true;
 		isExhaust = true;
 	}
@@ -171,6 +172,20 @@ public class Card implements Comparable<Card>{
 	public int compareTo (Card other) {
 		//Generates a descending by level order when Collections.sort() is called
 		return other.level - this.level;
+	}
+	
+	public static void main(String[] args) {
+		System.out.println("Testing upgrade.");
+		Card dexPerTurn = getCardMap().get("dexPerTurn");
+		System.out.println(dexPerTurn);
+		dexPerTurn.upgrade();
+		System.out.println("Upgraded:");
+		System.out.println(dexPerTurn);
+		try {
+			dexPerTurn.upgrade();
+		} catch (Throwable t) {
+			System.out.println("Couldn't upgrade again, as expected.");
+		}
 	}
 	
 	public void upgrade () {
@@ -209,6 +224,7 @@ public class Card implements Comparable<Card>{
 			response += " EXHAUST ";
 		}
 		response += ", Magnitude: " + magnitude;
+		response += ", EffectType: " + effectType;
 		return response;
 	}
 	

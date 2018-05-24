@@ -64,8 +64,6 @@ public class ClimbingGame {
 		strategyAverageAttainment = new HashMap<>();
 		strategyToLevelsAttainedMap = new HashMap<>();
 		
-		newCardOptions = Card.getCardMap();
-		
 		advUpgradeOptions = new HashMap<>();
 		//Remove the least powerful card from the deck
 		advUpgradeOptions.put("removeCard", hero -> {
@@ -116,42 +114,38 @@ public class ClimbingGame {
 		//List<String> options = Arrays.asList("heal", "strikeDefend", "strikeExhaust", "healBlock");
 		advUpgradeOptions.put("addCard", hero -> {
 			//Ugly ugly code to take all available upgrade options and remove a random one
-			List<String> regCards = Card.REGULAR_CARD_NAMES;
-			List<String> powerCards = Card.POWER_CARD_NAMES;
-			Collections.shuffle(regCards);
-			Collections.shuffle(powerCards);
+			List<String> regCardNames = Card.REGULAR_CARD_NAMES;
+			List<String> powerCardNames = Card.POWER_CARD_NAMES;
+			Collections.shuffle(regCardNames);
+			Collections.shuffle(powerCardNames);
 			List<String> options = new ArrayList<>();
 			//In any given round we get to choose between two regular cards and a power.
-			options.add(regCards.get(0));
-			options.add(regCards.get(1));
-			options.add(powerCards.get(0));
-			
-			Map<String, Card> availableUpgradeOptions = new HashMap<>();
-			for (String cardName : newCardOptions.keySet()) {
-				availableUpgradeOptions.put(cardName, new Card(newCardOptions.get(cardName)));
-			}
-
-			availableUpgradeOptions.remove(options.get(0));
+			options.add(regCardNames.get(0));
+			options.add(regCardNames.get(1));
+			options.add(powerCardNames.get(0));
+		
 			if (OUTPUT_LEVEL >= 3) {
-				System.out.println("\tChoices: " + availableUpgradeOptions.keySet());
+				System.out.println("\tChoices: " + options);
 			}
 			
 			List<String> preferences = hero.getStrategy().getCardPrefs();
-			String topPref = preferences.get(0);
-			Card chosen;
-			if (availableUpgradeOptions.containsKey(topPref)) {
-				chosen = availableUpgradeOptions.get(topPref);
-			} else {
-				//Since only one option was removed, we know that if the first choice wasn't available
-				//The second choice must be
-				chosen = availableUpgradeOptions.get(preferences.get(1));
+			Card chosen = null;
+			for (String pref : preferences) {
+				if (options.contains(pref)) {
+					Card temp = Card.getCardMap().get(pref);
+					if (temp == null) {
+						throw new AssertionError("Bad card name chosen: " + pref);
+					}
+					chosen = new Card(temp);
+					break;
+				}
 			}
 			hero.addCard(chosen);
 			if (OUTPUT_LEVEL >= 2) {
 				System.out.println("\t+++Added " + chosen + " to deck.");
 			}
 			if (chosen.getLevel() > 1) {
-				throw new AssertionError("New card cannot be already upgraded.");
+				throw new AssertionError("New card cannot be already upgraded: " + chosen);
 			}
 		});
 		//Increase the hero's max hitpoints
@@ -171,6 +165,7 @@ public class ClimbingGame {
 		//getGrittyHallOfFameData();
 		hallOfFame.close();
 		long masterEndTime = System.currentTimeMillis();
+		
 		System.out.println("Whole process took: " + (masterEndTime - masterStartTime) + " milliseconds.");
 		System.out.println("Spent " + (timeSpentOnDeathGames + timeSpentOnTimeOutGames) + " in games.");
 		System.out.println("Spent " + (masterEndTime - masterStartTime - timeSpentOnDeathGames - timeSpentOnTimeOutGames) +
@@ -179,7 +174,7 @@ public class ClimbingGame {
 		System.out.println("Ribbon data:");
 		System.out.println("Ribbon Played count = " + Hero.ribbonsPlayedCount);
 		System.out.println("Ribbon Helped count = " + Hero.ribbonsHelpedCount);
-		
+		System.out.println("Ribbon Upg helped count = " + Hero.upgRibbonHelpedCount);
 	}
 	
 	public static void breedingMethod1 () {
@@ -205,7 +200,7 @@ public class ClimbingGame {
 		
 		
 		deepBreedStrategies(hallOfFame.getFamers(), 10);
-		crossBreedStrategies(hallOfFame.getFamers(), 3);
+		crossBreedStrategies(hallOfFame.getFamers(), 1);
 		
 		System.out.println("Death count = " + deathCount);
 		System.out.println("Time out count = " + timeOutCount);
@@ -321,8 +316,7 @@ public class ClimbingGame {
 				}
 			}
 		}
-		System.out.println("Created " + children.size() + " strategies. NOT running them.");
-		//runStrategies(children, 500);
+		runStrategies(children, 500);
 		Collections.sort(children);
 		System.out.println("highest attainment = " + children.get(0).averageLevelAttained);
 		
@@ -447,6 +441,9 @@ public class ClimbingGame {
 				if (monster.hasWeakeningAttacks()) {
 					hero.increaseWeakness(Monster.WEAK_FACTOR);
 				}
+				if (monster.hasPoisonAttacks()) {
+					hero.increasePoison();
+				}
 				monster.endRound();
 				if (hero.getCurrentHealth() <= 0) {
 					if (OUTPUT_LEVEL >= 1) {
@@ -471,7 +468,7 @@ public class ClimbingGame {
 				roundCount++;
 			}
 			if (keepGoing) {
-				hero.endCombat();
+				hero.endCombat(level);
 				//Restore HP
 				if (level % 4 == 0) {
 					hero.heal(4 + (level / 6));
