@@ -26,8 +26,8 @@ public class HallOfFame {
 	private List<AdaptiveStrategy> famers;
 	private List<AdaptiveStrategy> potentials;
 	
-	static boolean TEST_MODE = false;
-	static boolean SAVE_OLD_HOF = true;
+	static boolean TEST_MODE = true;
+	static boolean SAVE_OLD_HOF = false;
 	
 	public HallOfFame () {
 		new File("data/hall_of_fame/old/").mkdirs();

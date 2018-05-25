@@ -4,10 +4,8 @@
  */
 package sts_heuristics;
 
-import java.util.ArrayList;
 import java.util.List;
 
-import static sts_heuristics.EffectType.*;
 
 public class Hero {
 	
@@ -16,6 +14,8 @@ public class Hero {
 	private int maxHealth;
 	private int blockHp;
 	private AdaptiveStrategy strategy;
+	
+	private int numActionsPerRound;
 	
 	private int strength = 0;
 	private int dexterity = 0;
@@ -26,28 +26,21 @@ public class Hero {
 	
 	private double vulnerableDamageFactor = 1.0;
 	private double weakDamageFactor = 1.0;
-	
 	private int poisonCount = 0;
 	
 	private boolean statusImmune = false;
 	
-	public static long ribbonsPlayedCount = 0;
-	public static long ribbonsHelpedCount = 0;
-	public static long upgRibbonHelpedCount = 0;
+	private double strongerBlockFactor = 1.0;
+	private int increaseMaxHpPerRound = 0;
+	
+	private int level = 1;
 	
 	public Hero () {
 		maxHealth = 40;
 		currentHealth = 40;
 		blockHp = 0;
-		
-		deck = new ArrayList<>();
-		deck.add(new Card(6, ATTACK));
-		deck.add(new Card(6, ATTACK));
-		deck.add(new Card(6, ATTACK));
-		
-		deck.add(new Card(6, BLOCK));
-		deck.add(new Card(6, BLOCK));
-		deck.add(new Card(6, BLOCK));
+		numActionsPerRound = 2;
+		deck = Card.getStartingDeck();
 	}
 	
 	public Hero (AdaptiveStrategy strategy) {
@@ -85,11 +78,7 @@ public class Hero {
 			powerBlockPerTurn += powerCard.getMagnitude();
 		} else if (powerCard.getEffectType() == EffectType.STATUS_IMMUNE) {
 			statusImmune = true;
-			ribbonsPlayedCount++;
 			if (powerCard.isUpgraded()) {
-				if (vulnerableDamageFactor != 1.0 || weakDamageFactor != 1.0 || poisonCount != 0) {
-					upgRibbonHelpedCount++;
-				}
 				vulnerableDamageFactor = 1.0;
 				weakDamageFactor = 1.0;
 				poisonCount = 0;
@@ -128,6 +117,8 @@ public class Hero {
 			weakDamageFactor = 1.0;
 			poisonCount = 0;
 		}
+		this.level = level;
+		increaseMaxHp(increaseMaxHpPerRound);
 	}
 	
 	public void increaseVulnerability (double amount) {
@@ -137,7 +128,6 @@ public class Hero {
 			message = "\tHero becomes more vulnerable to attacks. Now taking " + vulnerableDamageFactor + " of base.";
 		} else {
 			message = "\tHero dodges vulnerability increase with Status Immune Ribbon";
-			ribbonsHelpedCount++;
 		}
 		if (ClimbingGame.OUTPUT_LEVEL >= 4) {
 			System.out.println(message);
@@ -158,7 +148,6 @@ public class Hero {
 			}
 		} else {
 			message = "\tHero dodges weakness increase with Status Immune Ribbon";
-			ribbonsHelpedCount++;
 		}
 		if (ClimbingGame.OUTPUT_LEVEL >= 4) {
 			System.out.println(message);
@@ -172,7 +161,6 @@ public class Hero {
 			message = "\tHero was poisoned. Now at " + poisonCount + " poison.";
 		} else {
 			message = "\tHero dodges poison effect with Status Immune Ribbon";
-			ribbonsHelpedCount++;
 		}
 		if (ClimbingGame.OUTPUT_LEVEL >= 4) {
 			System.out.println(message);
@@ -182,6 +170,9 @@ public class Hero {
 	public void increaseMaxHp (int amount) {
 		currentHealth += amount;
 		maxHealth += amount;
+		if (ClimbingGame.OUTPUT_LEVEL >= 2 && amount != 0) {
+			System.out.println("\tHero's max hp increased by " + amount + ".");
+		}
 	}
 	
 	public int getCurrentHealth () {
@@ -217,7 +208,7 @@ public class Hero {
 	}
 	
 	public void addBlockHp (int amount) {
-		blockHp += amount + dexterity;
+		blockHp += (amount + dexterity) * strongerBlockFactor;
 	}
 	
 	public int getStrength () {
@@ -234,5 +225,34 @@ public class Hero {
 	
 	public void setStrategy (AdaptiveStrategy strategy) {
 		this.strategy = strategy;
+	}
+	
+	public int getNumActionsPerRound () {
+		return numActionsPerRound;
+	}
+	
+	public void incrementActionsPerRound () {
+		if (ClimbingGame.OUTPUT_LEVEL >= 1) {
+			System.out.println("\tHero gets an extra action per round.");
+		}
+		numActionsPerRound++;
+	}
+	
+	public void enableStrongerBlocks () {
+		if (ClimbingGame.OUTPUT_LEVEL >= 1) {
+			System.out.println("\tHero's blocks become 30% stronger.");
+		}
+		strongerBlockFactor = 1.3;
+	}
+	
+	public void enableIncreaseHpPerRound () {
+		if (ClimbingGame.OUTPUT_LEVEL >= 1) {
+			System.out.println("\tHero now gaining 2 max hp per round.");
+		}
+		increaseMaxHpPerRound = 2;
+	}
+	
+	public int getLevel () {
+		return level;
 	}
 }

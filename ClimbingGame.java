@@ -12,6 +12,11 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 public class ClimbingGame {
@@ -34,13 +39,16 @@ public class ClimbingGame {
 	//0 - used for highest level output
 	//1 - used for things that occur 1-2 times per game
 	//2 - used for things that occur timers per round
-	public static int OUTPUT_LEVEL = 0;
+	public static int OUTPUT_LEVEL = 4;
 	private static boolean init = false;
-	static long timeOutCount = 0;
-	static long deathCount = 0;
+	static AtomicLong timeOutCount;
+	static AtomicLong deathCount;
+	static AtomicLong gameCount;
 	
 	static long timeSpentOnDeathGames = 0;
 	static long timeSpentOnTimeOutGames = 0;
+	
+	private static ExecutorService threadService;
 	
 	public ClimbingGame () {
 		if (!init) {
@@ -61,8 +69,13 @@ public class ClimbingGame {
 	
 	public static void staticInit () {
 		hallOfFame = new HallOfFame();
-		strategyAverageAttainment = new HashMap<>();
-		strategyToLevelsAttainedMap = new HashMap<>();
+		strategyAverageAttainment = new ConcurrentHashMap<>();
+		strategyToLevelsAttainedMap = new ConcurrentHashMap<>();
+		
+		deathCount = new AtomicLong(0);
+		timeOutCount = new AtomicLong(0);
+		
+		gameCount = new AtomicLong(0);
 		
 		advUpgradeOptions = new HashMap<>();
 		//Remove the least powerful card from the deck
@@ -75,14 +88,15 @@ public class ClimbingGame {
 			int nonExhaustCards = (int) deck.stream()
 					.filter(card -> !card.isExhaust())
 					.count();
-			if (removed.isExhaust() || nonExhaustCards >= 2) {
+			if ((removed.isExhaust() || nonExhaustCards >= 2) && (removed.getLevel() < 2)) {
 				hero.removeCard(removed);
 				if (OUTPUT_LEVEL >= 2) {
 					System.out.println("\t+++Removed " + removed);
 				}
 			} else {
 				if (OUTPUT_LEVEL >= 2) {
-					System.out.println("\tCannot allow removal of last non-exhaust card. Did not remove: " + removed);
+					System.out.println("\tCannot allow removal of last non-exhaust card" 
+							+ " or level 2 cards. Did not remove: " + removed);
 				}
 			}
 		});
@@ -123,6 +137,10 @@ public class ClimbingGame {
 			options.add(regCardNames.get(0));
 			options.add(regCardNames.get(1));
 			options.add(powerCardNames.get(0));
+			if (hero.getLevel() >= 50) {
+				options.add(regCardNames.get(2));
+				options.add(powerCardNames.get(1));
+			}
 		
 			if (OUTPUT_LEVEL >= 3) {
 				System.out.println("\tChoices: " + options);
@@ -158,23 +176,23 @@ public class ClimbingGame {
 		init = true;
 	}
 	
-	public static void main(String[] args) {
+	public static void main(String[] args) throws InterruptedException {
 		long masterStartTime = System.currentTimeMillis();
 		staticInit();
-		breedingMethod1();
+		//breedingMethod1();
 		//getGrittyHallOfFameData();
+		for (int i = 0; i < 3; i++) {
+			new ClimbingGame(new AdaptiveStrategy(new Hero())).playGame();
+		}
 		hallOfFame.close();
 		long masterEndTime = System.currentTimeMillis();
 		
 		System.out.println("Whole process took: " + (masterEndTime - masterStartTime) + " milliseconds.");
-		System.out.println("Spent " + (timeSpentOnDeathGames + timeSpentOnTimeOutGames) + " in games.");
-		System.out.println("Spent " + (masterEndTime - masterStartTime - timeSpentOnDeathGames - timeSpentOnTimeOutGames) +
-				" on other things.");
 		
-		System.out.println("Ribbon data:");
-		System.out.println("Ribbon Played count = " + Hero.ribbonsPlayedCount);
-		System.out.println("Ribbon Helped count = " + Hero.ribbonsHelpedCount);
-		System.out.println("Ribbon Upg helped count = " + Hero.upgRibbonHelpedCount);
+		System.out.println("Death count = " + deathCount);
+		System.out.println("Time out count = " + timeOutCount);
+		
+		System.out.println("Game count = " + gameCount);
 	}
 	
 	public static void breedingMethod1 () {
@@ -197,16 +215,8 @@ public class ClimbingGame {
 		endTime = System.currentTimeMillis();
 		System.out.println("Breeding took: " + (endTime - startTime));
 		
-		
-		
 		deepBreedStrategies(hallOfFame.getFamers(), 10);
 		crossBreedStrategies(hallOfFame.getFamers(), 1);
-		
-		System.out.println("Death count = " + deathCount);
-		System.out.println("Time out count = " + timeOutCount);
-		
-		System.out.println("Time spent on death games = " + timeSpentOnDeathGames);
-		System.out.println("Time spent on timeout games = " + timeSpentOnTimeOutGames);
 	}
 
 	/* This method takes the Hall of Fame strategies, runs them 500 times each,
@@ -320,23 +330,35 @@ public class ClimbingGame {
 		Collections.sort(children);
 		System.out.println("highest attainment = " + children.get(0).averageLevelAttained);
 		
-		//hallOfFame.addPotentialMembers(children);
+		hallOfFame.addPotentialMembers(children);
 	}
 	
 	public static void runStrategies (List<AdaptiveStrategy> strategies, int numTimes) {
+		threadService = Executors.newCachedThreadPool();
 		for (AdaptiveStrategy strategy : strategies) {
-			for (int i = 0; i < numTimes; i++) {
-				new ClimbingGame(strategy).playGame();
-			}
+			threadService.submit(() -> {
+				for (int i = 0; i < numTimes; i++) {
+					new ClimbingGame(strategy).playGame();
+				}
+			});
 		}
+		
+		threadService.shutdown();
+		try {
+			threadService.awaitTermination(240, TimeUnit.SECONDS);
+		} catch (InterruptedException e) {
+			throw new AssertionError(e);
+		}
+		
 		calcAverageAttainment();
 	}
 	
-	//Test the variability to find out how many runs it takes to get a solid read
-	//on how successful a given strategy is
-	//Result: variability ~= 1.3367*runCount^-0.504  . Basically 1.33/sqrt(runCount)
-	//Variability with runCount 500 = 0.0583 (normal amount)
-	//Variability with runCount 10000 = 0.01288
+	/* Test the variability to find out how many runs it takes to get a solid read
+	 * on how successful a given strategy is
+	 * Result: variability ~= 1.3367*runCount^-0.504  . Basically 1.33/sqrt(runCount)
+	 * Variability with runCount 500 = 0.0583 (normal amount)
+	 * Variability with runCount 10000 = 0.01288
+	 */
 	public static void testVariability2 () {
 		Map<Integer, Double> runCountToDifferenceMap = new HashMap<>();
 		for (int runCount = 5; runCount < 150; runCount+= 5) {
@@ -386,7 +408,12 @@ public class ClimbingGame {
 	public static void calcAverageAttainment () {
 		strategyToLevelsAttainedMap.keySet().forEach(strat -> {
 			List<Integer> levels = strategyToLevelsAttainedMap.get(strat);
-			double average = levels.stream().mapToInt(e -> e).average().getAsDouble();
+			//double average = levels.stream().mapToInt(e -> e).average().getAsDouble();
+			int sum = 0;
+			for (Integer i : levels) {
+				sum += i;
+			}
+			double average = (double) sum / (double) levels.size();
 			int count = levels.size();
 			
 			if (OUTPUT_LEVEL >= 2) {
@@ -398,9 +425,8 @@ public class ClimbingGame {
 			strat.averageLevelAttained = average;
 		});
 	}
-
 	public void playGame () {
-		long startTime = System.currentTimeMillis();
+		gameCount.incrementAndGet();
 		boolean keepGoing = true;
 		while (keepGoing) {
 			if (OUTPUT_LEVEL >= 2) {
@@ -411,16 +437,14 @@ public class ClimbingGame {
 			discardPile = new ArrayList<>();
 			Collections.shuffle(drawPile);
 			int roundCount = 0;
+			if (level == 10 || level == 25) {
+				hero.incrementActionsPerRound();
+			}
 			//Combat
 			while (true) {
 				hero.setBlockHp(0);
 				//Do two hero attacks
-				doCardEffects(drawCard());
-				doCardEffects(drawCard());
-				if (level >= 10) {
-					doCardEffects(drawCard());
-				}
-				if (level >= 25) {
+				for (int i = 0; i < hero.getNumActionsPerRound(); i++) {
 					doCardEffects(drawCard());
 				}
 				if (OUTPUT_LEVEL >= 2) {
@@ -450,9 +474,7 @@ public class ClimbingGame {
 						System.out.println("Hero died on level " + level + ".");
 					}
 					keepGoing = false;
-					deathCount++;
-					long endTime = System.currentTimeMillis();
-					timeSpentOnDeathGames += (endTime - startTime);
+					deathCount.incrementAndGet();
 					break; //Out of the individual round loop
 				}
 				if (roundCount >= 30) {
@@ -460,9 +482,7 @@ public class ClimbingGame {
 						System.out.println("Timed out on combat after 30+ rounds. Hero loses.");
 					}
 					keepGoing = false;
-					timeOutCount++;
-					long endTime = System.currentTimeMillis();
-					timeSpentOnTimeOutGames += (endTime - startTime);
+					timeOutCount.incrementAndGet();
 					break;
 				}
 				roundCount++;
@@ -483,7 +503,7 @@ public class ClimbingGame {
 				if (strategyToLevelsAttainedMap.containsKey(hero.getStrategy())) {
 					levelsAttained = strategyToLevelsAttainedMap.get(hero.getStrategy());
 				} else {
-					levelsAttained = new ArrayList<>();
+					levelsAttained = Collections.synchronizedList(new ArrayList<>());
 				}
 				levelsAttained.add(level);
 				strategyToLevelsAttainedMap.put(hero.getStrategy(), levelsAttained);
@@ -495,9 +515,36 @@ public class ClimbingGame {
 		List<String> highLevelPrefs = hero.getStrategy().getHighLevelPrefs();
 		List<String> advUpgradeOptionNames = advUpgradeOptions.keySet().stream().collect(Collectors.toList());
 		Collections.shuffle(advUpgradeOptionNames);
-		//Take out two options, leaving 2
+		//Take out 2 options if level is under 50, otherwise just one
 		advUpgradeOptionNames.remove(0);
-		advUpgradeOptionNames.remove(0);
+		if (level < 50) {
+			advUpgradeOptionNames.remove(0);
+		}
+		
+		if (level == 45) {
+			String bonusChoice = hero.getStrategy().getBonusChoice();
+			//("extraCard", "strongerBlock", "bulkHpIncrease", "perTurnHpIncrease");
+			switch (bonusChoice) {
+				case "extraCard":
+					hero.incrementActionsPerRound();
+					break;
+				case "strongerBlock":
+					hero.enableStrongerBlocks();
+					break;
+				case "bulkHpIncrease":
+					hero.increaseMaxHp(30);
+					break;
+				case "perTurnHpIncrease":
+					hero.enableIncreaseHpPerRound();
+					break;
+				default:
+					throw new AssertionError("Invalid bonus choice.");	
+			}
+			if (OUTPUT_LEVEL >= 1) {
+				System.out.println("Added bonus for hero: " + bonusChoice);
+			}
+		}
+		
 		String choice = null;
 		//Find the first available choice
 		for (String s : highLevelPrefs) {

@@ -5,10 +5,12 @@
 package sts_heuristics;
 
 import static sts_heuristics.EffectType.ATTACK;
+import static sts_heuristics.EffectType.BLOCK;
 import static sts_heuristics.EffectType.BLOCK_AND_ATTACK;
 import static sts_heuristics.EffectType.HEAL;
 import static sts_heuristics.EffectType.HEAL_AND_BLOCK;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -38,6 +40,9 @@ public class Card implements Comparable<Card>{
 	//2 - Upgraded non-starter card
 	private int level;
 	
+	//Almost all other magnitudes are based on this one
+	public static final int DEFAULT_STRIKE_BLOCK_MAGNITUDE = 6;
+	
 	public static final List<String> REGULAR_CARD_NAMES = Arrays.asList("heal", "strikeDefend", "strikeExhaust", "healBlock");
 	public static final List<String> POWER_CARD_NAMES = Arrays.asList("strPerTurn", "dexPerTurn", "staticStr", "staticDex",
 			"healPerTurn", "blockPerTurn", "ribbon");
@@ -62,6 +67,19 @@ public class Card implements Comparable<Card>{
 		this.effectType = copy.effectType;
 	}
 	
+	public static List<Card> getStartingDeck () {
+		List<Card> deck = new ArrayList<>();
+		deck.add(new Card(DEFAULT_STRIKE_BLOCK_MAGNITUDE, ATTACK));
+		deck.add(new Card(DEFAULT_STRIKE_BLOCK_MAGNITUDE, ATTACK));
+		deck.add(new Card(DEFAULT_STRIKE_BLOCK_MAGNITUDE, ATTACK));
+		
+		deck.add(new Card(DEFAULT_STRIKE_BLOCK_MAGNITUDE, BLOCK));
+		deck.add(new Card(DEFAULT_STRIKE_BLOCK_MAGNITUDE, BLOCK));
+		deck.add(new Card(DEFAULT_STRIKE_BLOCK_MAGNITUDE, BLOCK));
+		
+		return deck;
+	}
+	
 	private static final Map<String, Card> CARD_MAP = new HashMap<>();
 	private static boolean mapInit = false;
 	//Just a design sandbox for the moment
@@ -70,16 +88,16 @@ public class Card implements Comparable<Card>{
 		if (!mapInit) {
 			CARD_MAP.put("strPerTurn", new Card(1, EffectType.STR_PER_TURN, 1, true));
 			CARD_MAP.put("dexPerTurn", new Card(1, EffectType.DEX_PER_TURN, 1, true));
-			CARD_MAP.put("staticStr", new Card(3, EffectType.STRENGTH, 1, true));
-			CARD_MAP.put("staticDex", new Card(3, EffectType.DEXTERITY, 1, true));
+			CARD_MAP.put("staticStr", new Card(DEFAULT_STRIKE_BLOCK_MAGNITUDE / 2, EffectType.STRENGTH, 1, true));
+			CARD_MAP.put("staticDex", new Card(DEFAULT_STRIKE_BLOCK_MAGNITUDE / 2, EffectType.DEXTERITY, 1, true));
 			CARD_MAP.put("ribbon", new Card(0, EffectType.STATUS_IMMUNE, 1, true)); 
-			CARD_MAP.put("healPerTurn", new Card(3, EffectType.HEAL_PER_TURN, 1, true));
-			CARD_MAP.put("blockPerTurn", new Card(4, EffectType.BLOCK_PER_TURN, 1, true));
+			CARD_MAP.put("healPerTurn", new Card(DEFAULT_STRIKE_BLOCK_MAGNITUDE / 2, EffectType.HEAL_PER_TURN, 1, true));
+			CARD_MAP.put("blockPerTurn", new Card((DEFAULT_STRIKE_BLOCK_MAGNITUDE / 2) + 1, EffectType.BLOCK_PER_TURN, 1, true));
 			
-			CARD_MAP.put("strikeDefend", new Card(4, BLOCK_AND_ATTACK, 1));
-			CARD_MAP.put("heal", new Card(6, HEAL, 1));
-			CARD_MAP.put("healBlock", new Card(4, HEAL_AND_BLOCK, 1));
-			Card exhaust = new Card (10, ATTACK, 1);
+			CARD_MAP.put("strikeDefend", new Card(DEFAULT_STRIKE_BLOCK_MAGNITUDE - 2, BLOCK_AND_ATTACK, 1));
+			CARD_MAP.put("heal", new Card(DEFAULT_STRIKE_BLOCK_MAGNITUDE, HEAL, 1));
+			CARD_MAP.put("healBlock", new Card(DEFAULT_STRIKE_BLOCK_MAGNITUDE - 2, HEAL_AND_BLOCK, 1));
+			Card exhaust = new Card (DEFAULT_STRIKE_BLOCK_MAGNITUDE * 2, ATTACK, 1);
 			exhaust.setExhaust(true);
 			CARD_MAP.put("strikeExhaust", exhaust);
 			

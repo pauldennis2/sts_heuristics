@@ -28,6 +28,10 @@ public class Monster {
 	
 	private int level;
 	
+	public static final int FIRST_ABILITY_ADDED = 10;
+	public static final int SECOND_ABILITY_ADDED = 25;
+	public static final int THIRD_ABILITY_ADDED = 40;
+	
 	public Monster (int level) {
 		this.level = level;
 		Random random = new Random();
@@ -35,6 +39,9 @@ public class Monster {
 			damage = level;
 		} else {
 			damage = 8 + (level - 8) / 2;
+		}
+		if (level >= 45) {
+			damage += (level - 45) / 4;
 		}
 		if (level >= 10) {
 			addAbility();
@@ -71,6 +78,13 @@ public class Monster {
 			}
 		}
 		inputScanner.close();
+	}
+	
+	public static void main(String[] args) {
+		for (int i = 1; i < 70; i++) {
+			Monster m = new Monster(i);
+			System.out.println("Level " + i + ", Damage = " + m.getDamage());
+		}
 	}
 	
 	private void addAbility () {
