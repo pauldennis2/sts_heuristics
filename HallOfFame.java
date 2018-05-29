@@ -5,6 +5,12 @@
 package sts_heuristics;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -14,9 +20,11 @@ public class HallOfFame {
 	//Used to keep track of the 20 most successful strategies on average
 	//that have been run at least 500 times (hopefully)
 	
-	static final String FAMERS_FILE_LOC = "data/hall_of_fame/hall_of_fame.txt";
-	static final String POTENTIALS_FILE_LOC = "data/hall_of_fame/potentials.txt";
-	static final String FORMER_HOF = "data/hall_of_fame/old/former_hof_";
+	static final String ROOT_DIR = "data/hall_of_fame/";
+	static final String FAMERS_FILE_LOC = ROOT_DIR + "hall_of_fame.txt";
+	static final String POTENTIALS_FILE_LOC = ROOT_DIR + "potentials.txt";
+	static final String FORMER_HOF = ROOT_DIR + "old/former_hof_";
+	static final String HIGH_WATER = ROOT_DIR + "high_water.txt";
 	static final int MAX_NUM_FAMERS = 20;
 	static final int MAX_NUM_POTENTIALS = 200;
 	
@@ -26,8 +34,8 @@ public class HallOfFame {
 	private List<AdaptiveStrategy> famers;
 	private List<AdaptiveStrategy> potentials;
 	
-	static boolean TEST_MODE = true;
-	static boolean SAVE_OLD_HOF = false;
+	static boolean TEST_MODE = false;
+	static boolean SAVE_OLD_HOF = true;
 	
 	public HallOfFame () {
 		new File("data/hall_of_fame/old/").mkdirs();
@@ -107,11 +115,10 @@ public class HallOfFame {
 			}
 		}
 		System.out.println("Test completed successfully.");
-		
 	}
 	
 	//Write out the top 20 and top 200
-	public void close () {
+	public void close (long millis) {
 		System.out.println("Hall of Fame closing down for the day...");
 		truncateLists();
 		
@@ -123,6 +130,8 @@ public class HallOfFame {
 			
 			System.out.println("Writing " + potentials.size() + " potentials to file.");
 			AdaptiveStrategy.writeStrategiesToFile(potentials, POTENTIALS_FILE_LOC);
+			
+			writeHighWater(millis);
 		}
 		//Close should only be called when we're done.
 		//So if someone tries to access these after close, we'll fail loudly
@@ -130,9 +139,34 @@ public class HallOfFame {
 		potentials = null;
 	}
 	
+	private void writeHighWater (long millis) {
+		AdaptiveStrategy topDog = famers.get(0);
+		if (topDog != null) {
+			double highest = topDog.averageLevelAttained;
+			double lowest = famers.get(famers.size() - 1).averageLevelAttained;
+			System.out.println("Writing highest achievement of " + highest + " to file.");
+			LocalDateTime now = LocalDateTime.now();
+			DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+			String data = "\n" + now.format(formatter) + ", " + highest + ", " + lowest + ", " + millis;
+			
+			try {
+				Files.write(Paths.get(HIGH_WATER), data.getBytes(), StandardOpenOption.APPEND);
+			} catch (IOException ex) {
+				System.err.println("!!Error writing high water mark data.");
+				ex.printStackTrace();
+			}
+		} else {
+			System.out.println("Have no top dog, can't record high water.");
+		}
+	}
+	
 	private void writeOldFamers () {
-		System.out.println("Saving old famers to file.");
-		AdaptiveStrategy.writeStrategiesToFile(famers, FORMER_HOF + System.currentTimeMillis() + ".txt");
+		if (famers.size() > 0) {
+			System.out.println("Saving old famers to file.");
+			AdaptiveStrategy.writeStrategiesToFile(famers, FORMER_HOF + System.currentTimeMillis() + ".txt");
+		} else {
+			System.out.println("Famers empty (not saving to file).");
+		}
 	}
 	
 	private void truncateLists () {

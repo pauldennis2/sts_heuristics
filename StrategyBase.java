@@ -12,7 +12,7 @@ public class StrategyBase implements Comparable<StrategyBase> {
 	private List<String> cardPrefs;
 	private List<String> highLevelPrefs;
 	
-	double averageLevelAttained;
+	protected double averageLevelAttained;
 	
 	public StrategyBase () {
 		cardPrefs = Arrays.asList("heal", "strikeDefend", "strikeExhaust", "healBlock");
@@ -52,4 +52,5 @@ public class StrategyBase implements Comparable<StrategyBase> {
 	public void setHighLevelPrefs(List<String> highLevelPrefs) {
 		this.highLevelPrefs = highLevelPrefs;
 	}
+	
 }

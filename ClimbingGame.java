@@ -26,7 +26,7 @@ public class ClimbingGame {
 	//0 - used for highest level output
 	//1 - used for things that occur 1-2 times per game
 	//2 - used for things that occur timers per round
-	public static int OUTPUT_LEVEL = 4;
+	public static int OUTPUT_LEVEL = 0;
 	private static boolean init = false;
 	
 	public ClimbingGame () {

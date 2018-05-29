@@ -163,6 +163,9 @@ public class AdaptiveStrategy extends StrategyBase implements Tweakable {
 	public AdaptiveStrategy (String fileString) {
 		String[] tokens = fileString.split(":");
 		name = tokens[0];
+		if (name.length() > 64) {
+			name = getShorterName(name);
+		}
 		averageLevelAttained = Double.parseDouble(tokens[1]);
 		//Remove any whitespace or brackets []
 		String hlpString = tokens[2].replaceAll("[\\{\\} ]", "");
@@ -211,6 +214,12 @@ public class AdaptiveStrategy extends StrategyBase implements Tweakable {
 		validate();
 	}
 	
+	private static String getShorterName (String name) {
+		Random r = new Random();
+		name = name.substring(0, 10) + "_" + NAME_FRAGMENTS.get(r.nextInt(NAME_FRAGMENTS.size()));
+		return name;
+	}
+	
 	public AdaptiveStrategy getCopy () {
 		AdaptiveStrategy copy = new AdaptiveStrategy();
 		copy.cardValues = new RoundedDoubleMap(this.cardValues);
@@ -231,7 +240,7 @@ public class AdaptiveStrategy extends StrategyBase implements Tweakable {
 		newStrat.hlpValues = new RoundedDoubleMap(this.hlpValues);
 		newStrat.cardValues = new RoundedDoubleMap(this.cardValues);
 		newStrat.name = getChildName(this.name);
-	
+		newStrat.bonusChoice = this.bonusChoice;
 		Random r = new Random();
 		
 		//Half of the time we'll change a condition
@@ -272,9 +281,11 @@ public class AdaptiveStrategy extends StrategyBase implements Tweakable {
 			}
 		} else {//Change base preferences
 			if (r.nextBoolean()) {//By changing high level prefs
-				HLPS.forEach(hlpref -> hlpValues.put(hlpref, r.nextDouble()));
+				Map<String, Double> newValues = getRandomValues(HLPS);
+				newValues.keySet().forEach(hlpName -> hlpValues.put(hlpName, newValues.get(hlpName)));
 			} else { //By changing card prefs
-				CARDS.forEach(cardName -> cardValues.put(cardName, r.nextDouble()));
+				Map<String, Double> newValues = getRandomValues(CARDS);
+				newValues.keySet().forEach(cardName -> cardValues.put(cardName, newValues.get(cardName)));
 			}
 		}
 		if (r.nextDouble() > 0.75) {
@@ -344,44 +355,6 @@ public class AdaptiveStrategy extends StrategyBase implements Tweakable {
 			throw new AssertionError("Bad/missing bonus choice.");
 		}
 	}
-
- 	public static AdaptiveStrategy buildJoyfulDragon () {
- 		/*
-		AdaptiveStrategy joyfulDragon = new AdaptiveStrategy();
-		joyfulDragon.isDiff = false;
-		joyfulDragon.name = "joyful-dragon90";
-		joyfulDragon.conditionsAndValuesMap = new HashMap<>();
-		
-		SingleCondition upgradeNonStarters = new SingleCondition("unupgradedNonStarterCards > 0 (HLP)");
-		upgradeNonStarters.setPriorityLevel(2);
-		List<String> unsPrefs = Arrays.asList("upgradeCard", "addCard", "maxHp", "removeCard");
-		joyfulDragon.conditionsAndValuesMap.put(upgradeNonStarters, null);
-		
-		SingleCondition maxHp = new SingleCondition("maxHp < level * 6 (HLP)");
-		maxHp.setPriorityLevel(1);
-		List<String> mhpPrefs = Arrays.asList("maxHp", "addCard", "removeCard", "upgradeCard");
-		joyfulDragon.conditionsAndValuesMap.put(maxHp, null);
-		
-		SingleCondition valueDamage = new SingleCondition("averageDamagePerCard < level * 0.4 (Cards)");
-		valueDamage.setPriorityLevel(0);
-		List<String> vdPrefs = Arrays.asList("strikeExhaust", "strikeDefend", "healBlock", "heal");
-		joyfulDragon.conditionsAndValuesMap.put(valueDamage, null);
-		joyfulDragon.validate();
-		*/
-		//TODO fix
-		throw new AssertionError("fix (add values in)");
-	}
- 	
- 	public static AdaptiveStrategy buildRibbonStrat () {
- 		AdaptiveStrategy ribbonStrat = new AdaptiveStrategy(new Hero());
- 		ribbonStrat.conditionsAndValuesMap = new HashMap<>();
- 		CompositeCondition cc = new CompositeCondition("(level > 10) && (numRibbons < 1.0)");
- 		Map<String, Double> valuesMap = new RoundedDoubleMap();
- 		valuesMap.put("addCard", 2.0);
- 		valuesMap.put("ribbon", 2.0);
- 		ribbonStrat.conditionsAndValuesMap.put(cc, valuesMap);
- 		return ribbonStrat;
- 	}
 	
 	public static void testWriteToFile () {
 		List<AdaptiveStrategy> strategies = new ArrayList<>();
@@ -456,6 +429,13 @@ public class AdaptiveStrategy extends StrategyBase implements Tweakable {
 	private static String get2ParentChildName (String dadsName, String momsName) {
 		String dadsDigits = dadsName.replaceAll("[^\\d]", "");
 		String momsDigits = momsName.replaceAll("[^\\d]", "");
+		
+		if (dadsDigits.length() > 5) {
+			dadsDigits = dadsDigits.substring(0, 5);
+		}
+		if (momsDigits.length() > 5) {
+			momsDigits = dadsDigits.substring(0, 5);
+		}
 		
 		String dadsFirst = dadsName.split("-")[0];
 		String momsFirst = momsName.split("-")[0];
