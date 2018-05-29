@@ -657,6 +657,18 @@ public class AdaptiveStrategy extends StrategyBase implements Tweakable {
 		return diff;
 	}
 	
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + ((bonusChoice == null) ? 0 : bonusChoice.hashCode());
+		result = prime * result + ((cardValues == null) ? 0 : cardValues.hashCode());
+		result = prime * result + ((conditionsAndValuesMap == null) ? 0 : conditionsAndValuesMap.hashCode());
+		result = prime * result + ((hlpValues == null) ? 0 : hlpValues.hashCode());
+		result = prime * result + ((name == null) ? 0 : name.hashCode());
+		return result;
+	}
+
 	//All Strategies must be either diffs or NOT diffs (not a mix)
 	public static StrategyGroupReport analyzeStrategies (List<AdaptiveStrategy> strategies) {
 		/*

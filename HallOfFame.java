@@ -5,6 +5,7 @@
 package sts_heuristics;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -14,6 +15,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Scanner;
 
 public class HallOfFame {
 
@@ -25,11 +27,12 @@ public class HallOfFame {
 	static final String POTENTIALS_FILE_LOC = ROOT_DIR + "potentials.txt";
 	static final String FORMER_HOF = ROOT_DIR + "old/former_hof_";
 	static final String HIGH_WATER = ROOT_DIR + "high_water.txt";
+	static final String TIMES_SINCE_IMPROVEMENT = ROOT_DIR + "times_since_improvement.txt";
 	static final int MAX_NUM_FAMERS = 20;
 	static final int MAX_NUM_POTENTIALS = 200;
 	
-	double famersMinAttainmentNeeded;
-	double potentialsMinAttainmentNeeded;
+	private double famersMinAttainmentNeeded;
+	private double potentialsMinAttainmentNeeded;
 	
 	private List<AdaptiveStrategy> famers;
 	private List<AdaptiveStrategy> potentials;
@@ -37,29 +40,35 @@ public class HallOfFame {
 	static boolean TEST_MODE = false;
 	static boolean SAVE_OLD_HOF = true;
 	
+	private int timesSinceImprovement;
+	
+	private final double bestHof;
+	
 	public HallOfFame () {
 		new File("data/hall_of_fame/old/").mkdirs();
 		famers = AdaptiveStrategy.readStrategiesFromFile(FAMERS_FILE_LOC);
+		Collections.sort(famers);
+		bestHof = famers.get(0).averageLevelAttained;
 		potentials = AdaptiveStrategy.readStrategiesFromFile(POTENTIALS_FILE_LOC);
 		if (potentials.size() == 0) {
 			potentials = new ArrayList<>(famers);
 		}
+		try (Scanner fileScanner = new Scanner(new File(TIMES_SINCE_IMPROVEMENT))) {
+			timesSinceImprovement = Integer.parseInt(fileScanner.nextLine());
+		} catch (FileNotFoundException ex) {
+			System.err.println("!!Couldn't find times_since_improvement.txt. Setting to 0.");
+			timesSinceImprovement = 0;
+		} catch (NumberFormatException ex) {
+			System.err.println("!!Bad file format for times since improvement. Setting it to 0.");
+			timesSinceImprovement = 0;
+		}
+		System.out.println("Times since improvement = " + timesSinceImprovement);
 		determineMinAttainmentNeeded();
 		if (SAVE_OLD_HOF) {
 			writeOldFamers();
 		} else {
 			System.out.println("In Test Mode - not making any file changes.");
 		}
-	}
-	
-	private HallOfFame (String reason) {
-		System.out.println("Being constructed for reason: " + reason);
-		famers = AdaptiveStrategy.readStrategiesFromFile(FAMERS_FILE_LOC);
-		potentials = AdaptiveStrategy.readStrategiesFromFile(POTENTIALS_FILE_LOC);
-		if (potentials.size() == 0) {
-			potentials = new ArrayList<>(famers);
-		}
-		determineMinAttainmentNeeded();
 	}
 	
 	public void addPotentialMembers (List<AdaptiveStrategy> newPotentials) {
@@ -92,31 +101,6 @@ public class HallOfFame {
 		//TODO: implement
 	}
 	
-	public static void main(String[] args) {
-		testAddPotentialMembers();
-	}
-	
-	public static void testAddPotentialMembers () {
-		HallOfFame hof = new HallOfFame("test");
-		double min = hof.famersMinAttainmentNeeded;
-		
-		List<AdaptiveStrategy> unworthyStrategies = new ArrayList<>();
-		for (int i = 0; i < 10000; i++) {
-			AdaptiveStrategy strategy = new AdaptiveStrategy(new Hero());
-			strategy.setAverageLevelAttained(min - 0.1);
-			unworthyStrategies.add(strategy);
-		}
-		
-		hof.addPotentialMembers(unworthyStrategies);
-		
-		for (AdaptiveStrategy strategy : unworthyStrategies) {
-			if (hof.famers.contains(strategy)) {
-				throw new AssertionError("Strategy should not have been added.");
-			}
-		}
-		System.out.println("Test completed successfully.");
-	}
-	
 	//Write out the top 20 and top 200
 	public void close (long millis) {
 		System.out.println("Hall of Fame closing down for the day...");
@@ -131,7 +115,7 @@ public class HallOfFame {
 			System.out.println("Writing " + potentials.size() + " potentials to file.");
 			AdaptiveStrategy.writeStrategiesToFile(potentials, POTENTIALS_FILE_LOC);
 			
-			writeHighWater(millis);
+			writeHighWaterAndTimesSinceImprovement(millis);
 		}
 		//Close should only be called when we're done.
 		//So if someone tries to access these after close, we'll fail loudly
@@ -139,7 +123,7 @@ public class HallOfFame {
 		potentials = null;
 	}
 	
-	private void writeHighWater (long millis) {
+	private void writeHighWaterAndTimesSinceImprovement (long millis) {
 		AdaptiveStrategy topDog = famers.get(0);
 		if (topDog != null) {
 			double highest = topDog.averageLevelAttained;
@@ -148,9 +132,15 @@ public class HallOfFame {
 			LocalDateTime now = LocalDateTime.now();
 			DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 			String data = "\n" + now.format(formatter) + ", " + highest + ", " + lowest + ", " + millis;
-			
+			if (highest > bestHof) {
+				timesSinceImprovement = 0;
+			} else {
+				timesSinceImprovement++;
+			}
+			String times = "" + timesSinceImprovement;
 			try {
 				Files.write(Paths.get(HIGH_WATER), data.getBytes(), StandardOpenOption.APPEND);
+				Files.write(Paths.get(TIMES_SINCE_IMPROVEMENT), times.getBytes(), StandardOpenOption.WRITE);
 			} catch (IOException ex) {
 				System.err.println("!!Error writing high water mark data.");
 				ex.printStackTrace();
@@ -208,5 +198,17 @@ public class HallOfFame {
 			response.add(strategy.getCopy());
 		}
 		return response;
+	}
+	
+	public double getFamersMinAttainmentNeeded () {
+		return famersMinAttainmentNeeded;
+	}
+	
+	public double getPotentialsMinAttainmentNeeded () {
+		return potentialsMinAttainmentNeeded;
+	}
+	
+	public int getTimesSinceImprovement () {
+		return timesSinceImprovement;
 	}
 }

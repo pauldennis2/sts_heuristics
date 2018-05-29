@@ -16,6 +16,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 public class GameRunner {
@@ -29,31 +30,63 @@ public class GameRunner {
 	
 	private static int OUTPUT_LEVEL = 0;
 	
+	private AtomicLong optimizedCount;
+	
 	public GameRunner () {
+		optimizedCount = new AtomicLong(0);
 		strategyToLevelsAttainedMap = new ConcurrentHashMap<>();
 		strategyAverageAttainment = new ConcurrentHashMap<>();
 		hallOfFame = new HallOfFame();
 	}
 	
 	public static void main(String[] args) {
-		new GameRunner().run();
+		//new GameRunner().run();
+		new GameRunner().testTopStrat();
+	}
+	
+	public void testTopStrat () {
+		List<AdaptiveStrategy> strats = hallOfFame.getFamers();
+		Collections.sort(strats);
+		AdaptiveStrategy best = strats.get(0);
+		System.out.println("Found best strategy:");
+		System.out.println(best);
+		System.out.println("===");
+		int sum = 0;
+		for (int i = 0; i < 100; i++) {
+			int result = new ClimbingGame(best).playGame();
+			recordResults(best, result);
+			sum += result;
+			System.out.println("\t" + result);
+		}
+		calcAverageAttainment();
+		double average = (double) sum / 100;
+		System.out.println("Average = " + average);
+		System.out.println("Best.averageAttainment = " + best.getAverageLevelAttained());
 	}
 	
 	public void run () {
 		long startTime = System.currentTimeMillis();
-		breedingMethod1();
-		//getGrittyHallOfFameData();
+		//breedingMethod1();
+		getGrittyHallOfFameData();
+		boolean breeding = false;
+		if (hallOfFame.getTimesSinceImprovement() >= 3 && breeding) {
+			System.out.println("Times since improvement = " + hallOfFame.getTimesSinceImprovement());
+			breedingMethodNewBlood();
+			System.out.println("Re-running normal breeding method.");
+			breedingMethod1();
+		}
 		
 		long endTime = System.currentTimeMillis();
 		long duration = endTime - startTime;
-		hallOfFame.close(duration);
+		//hallOfFame.close(duration);
 		System.out.println("Whole process took: " + duration + " milliseconds.");
+		System.out.println("Optimization helped " + optimizedCount + " times.");
 	}
 	
 	public void breedingMethod1 () {
 		long startTime;
 		long endTime;
-		seedHallOfFame();
+		createAndRunNewStrats(500);
 		
 		startTime = System.currentTimeMillis();
 		breedStrategies(hallOfFame.getPotentials(), 3);
@@ -72,6 +105,21 @@ public class GameRunner {
 		
 		deepBreedStrategies(hallOfFame.getFamers(), 20);
 		crossBreedStrategies(hallOfFame.getFamers(), 3);
+	}
+	
+	public void breedingMethodNewBlood () {
+		System.out.println("Getting somewhat desparate... going to 2nd breeding method.");
+		List<AdaptiveStrategy> bestNewBlood = takeTopPercent(createAndRunNewStrats(1000), 0.2); //200
+		List<AdaptiveStrategy> bestBred = takeTopPercent(breedStrategies(bestNewBlood, 3), 0.3); //180
+		List<AdaptiveStrategy> bestGcs = takeTopPercent(deepBreedStrategies(bestBred, 5), 0.1); //180
+		List<AdaptiveStrategy> bestGggcs = takeTopPercent(deepBreedStrategies(bestGcs, 5), 0.05); //90
+		List<AdaptiveStrategy> bestSomething = takeTopPercent(crossBreedStrategies(bestGggcs, 1), 0.1); //?
+		breedStrategies(bestSomething, 3);
+	}
+	
+	public void breedingMethodTrueDesparation () {
+		System.out.println("Getting truly desparate... going to 3rd breeding method (this might take a while).");
+		
 	}
 
 	/* This method takes the Hall of Fame strategies, runs them 500 times each,
@@ -185,14 +233,33 @@ public class GameRunner {
 		levelsAttained.add(result);
 		strategyToLevelsAttainedMap.put(strategy, levelsAttained);
 	}
-	
+	public static double PCT = 0.7;
 	public void runStrategies (List<AdaptiveStrategy> strategies, int numTimes) {
 		threadService = Executors.newCachedThreadPool();
 		for (AdaptiveStrategy strategy : strategies) {
 			threadService.submit(() -> {
-				for (int i = 0; i < numTimes; i++) {
-					int result = new ClimbingGame(strategy).playGame();
-					recordResults(strategy, result);
+				if (numTimes >= 300) {
+					int sum = 0;
+					for (int i = 0; i < 100; i++) {
+						int result = new ClimbingGame(strategy).playGame();
+						sum += result;
+						recordResults(strategy, result);
+					}
+					double needed = hallOfFame.getPotentialsMinAttainmentNeeded();
+					double average = (double) sum / 100.0;
+					if (average > needed * PCT) {
+						for (int i = 100; i < numTimes; i++) {
+							int result = new ClimbingGame(strategy).playGame();
+							recordResults(strategy, result);
+						}
+					} else {
+						optimizedCount.incrementAndGet();
+					}
+				} else {
+					for (int i = 0; i < numTimes; i++) {
+						int result = new ClimbingGame(strategy).playGame();
+						recordResults(strategy, result);
+					}
 				}
 			});
 		}
@@ -208,18 +275,19 @@ public class GameRunner {
 	}
 	
 	//Create 500 new strategies and run them 500 times each	
-	public void seedHallOfFame () {
-		System.out.println("Seeding Hall of Fame by running 500 strategies 500 times.");
+	public List<AdaptiveStrategy> createAndRunNewStrats (int numStrategies) {
+		System.out.println("Seeding Hall of Fame by creating and running " + numStrategies + " strategies 500 times.");
 		System.out.println("(Process should take < 20 seconds.)");
 		List<AdaptiveStrategy> newStrats = new ArrayList<>();
-		for (int i = 0; i < 500; i++) {
+		for (int i = 0; i < numStrategies; i++) {
 			newStrats.add(new AdaptiveStrategy(new Hero()));
 		}
 		runStrategies(newStrats, 500);
 		hallOfFame.addPotentialMembers(newStrats);
+		return newStrats;
 	}
 	
-	public void breedStrategies (List<AdaptiveStrategy> strategies, int numChildren) {
+	public List<AdaptiveStrategy> breedStrategies (List<AdaptiveStrategy> strategies, int numChildren) {
 		System.out.println("Received " + strategies.size() + " strategies.");
 		System.out.println("Breeding by giving each " + numChildren + " children.");
 		List<AdaptiveStrategy> children = new ArrayList<>();
@@ -233,9 +301,10 @@ public class GameRunner {
 		System.out.println("highest attainment = " + children.get(0).averageLevelAttained);
 		
 		hallOfFame.addPotentialMembers(children);
+		return children;
 	}
 	
-	public void deepBreedStrategies (List<AdaptiveStrategy> strategies, int numGreatGrandchildren) {
+	public List<AdaptiveStrategy> deepBreedStrategies (List<AdaptiveStrategy> strategies, int numGreatGrandchildren) {
 		System.out.println("Received " + strategies.size() + " strategies.");
 		System.out.println("Deep breeding each by giving it " + numGreatGrandchildren + " great-great-grandchildren.");
 		List<AdaptiveStrategy> children = new ArrayList<>();
@@ -250,9 +319,10 @@ public class GameRunner {
 		System.out.println("highest attainment = " + children.get(0).averageLevelAttained);
 		
 		hallOfFame.addPotentialMembers(children);
+		return children;
 	}
 	
-	public void crossBreedStrategies (List<AdaptiveStrategy> strategies, int numChildren) {
+	public List<AdaptiveStrategy> crossBreedStrategies (List<AdaptiveStrategy> strategies, int numChildren) {
 		System.out.println("Received " + strategies.size() + " strategies.");
 		System.out.println("Cross-breeding these strategies by giving each pair " + 2 * numChildren + " children.");
 		int numPairs = strategies.size() * (strategies.size() - 1);
@@ -274,5 +344,18 @@ public class GameRunner {
 		System.out.println("highest attainment = " + children.get(0).averageLevelAttained);
 		
 		hallOfFame.addPotentialMembers(children);
+		return children;
+	}
+	
+	public static List<AdaptiveStrategy> takeTopPercent (List<AdaptiveStrategy> strategies, double percentToKeep) {
+		Collections.sort(strategies);
+		List<AdaptiveStrategy> best = new ArrayList<>();
+		int index = 0;
+		while (best.size() < strategies.size() * percentToKeep) {
+			best.add(strategies.get(index));
+			index++;
+		}
+		
+		return best;
 	}
 }
