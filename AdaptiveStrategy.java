@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -57,10 +58,13 @@ public class AdaptiveStrategy extends StrategyBase implements Tweakable {
 	private String bonusChoice;
 	private Map<Conditional, Map<String, Double>> conditionsAndValuesMap;
 	
+	private final List<Integer> attainment;
+	
 	//For the difference function
 	private AdaptiveStrategy () {
 		isDiff = true;
 		name = "diff";
+		attainment = Collections.synchronizedList(new LinkedList<>());
 	}
 	
 	//Create a new random strategy
@@ -110,10 +114,13 @@ public class AdaptiveStrategy extends StrategyBase implements Tweakable {
 			}
 		}
 		validate();
+		
+		attainment = Collections.synchronizedList(new LinkedList<>());
 	}
 	
 	//Sometimes when a mommy strategy and a daddy strategy love each other VERY much...
 	public AdaptiveStrategy (AdaptiveStrategy dad, AdaptiveStrategy mom) {
+		attainment = Collections.synchronizedList(new LinkedList<>());
 		this.dadsName = dad.name;
 		this.momsName = mom.name;
 		this.name = get2ParentChildName(dadsName, momsName);
@@ -161,6 +168,7 @@ public class AdaptiveStrategy extends StrategyBase implements Tweakable {
 	}
 	
 	public AdaptiveStrategy (String fileString) {
+		attainment = Collections.synchronizedList(new LinkedList<>());
 		String[] tokens = fileString.split(":");
 		name = tokens[0];
 		if (name.length() > 64) {
@@ -228,6 +236,7 @@ public class AdaptiveStrategy extends StrategyBase implements Tweakable {
 		copy.conditionsAndValuesMap = new HashMap<>(this.conditionsAndValuesMap);
 		copy.name = this.name;
 		copy.bonusChoice = this.bonusChoice;
+		copy.averageLevelAttained = this.averageLevelAttained;
 		copy.validate();
 		return copy;
 	}
@@ -291,8 +300,16 @@ public class AdaptiveStrategy extends StrategyBase implements Tweakable {
 		if (r.nextDouble() > 0.75) {
 			bonusChoice = BONUS_CHOICES.get(r.nextInt(BONUS_CHOICES.size()));
 		}
+		if (newStrat.equals(this)) {
+			return this.tweak();
+		}
 		newStrat.validate();
+		
 		return newStrat;
+	}
+	
+	public synchronized void addAttainment (int level) {
+		attainment.add(level);
 	}
 	
 	/* Helper method. Given a list, will return a map with at least one
@@ -431,10 +448,10 @@ public class AdaptiveStrategy extends StrategyBase implements Tweakable {
 		String momsDigits = momsName.replaceAll("[^\\d]", "");
 		
 		if (dadsDigits.length() > 5) {
-			dadsDigits = dadsDigits.substring(0, 5);
+			dadsDigits = dadsDigits.substring(0, 4);
 		}
 		if (momsDigits.length() > 5) {
-			momsDigits = dadsDigits.substring(0, 5);
+			momsDigits = momsDigits.substring(0, 4);
 		}
 		
 		String dadsFirst = dadsName.split("-")[0];
@@ -759,5 +776,9 @@ public class AdaptiveStrategy extends StrategyBase implements Tweakable {
 	
 	public String getBonusChoice () {
 		return bonusChoice;
+	}
+	
+	public List<Integer> getAttainment () {
+		return attainment;
 	}
 }

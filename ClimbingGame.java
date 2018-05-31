@@ -41,7 +41,7 @@ public class ClimbingGame {
 		this();
 		strategy.setHero(hero);
 		hero.setStrategy(strategy);
-		if (OUTPUT_LEVEL >= 1) {
+		if (OUTPUT_LEVEL >= 2) {
 			System.out.println("Starting new game with this strategy: " + strategy);
 		}
 	}
@@ -198,7 +198,7 @@ public class ClimbingGame {
 				}
 				if (roundCount >= 30) {
 					if (OUTPUT_LEVEL >= 1) {
-						System.out.println("Timed out on combat after 30+ rounds. Hero loses.");
+						System.out.println("Timed out on combat after 30+ rounds. Hero loses on level " + level + ".");
 					}
 					keepGoing = false;
 					break;
