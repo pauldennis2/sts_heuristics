@@ -1,0 +1,13 @@
+1. Created a basic analysis for strategies. See below for feature suggestions.
+
+2. Added analysis of conditions.
+	Conditions that are never triggered are saved and never used again
+	Good conditions (ones that improve outcome) are saved and re-used in the future
+	
+3. Learned a lesson about luck. While the average variability with 500 runs might be around 0.1, in practice variability can be as high as 2.5-3.0 (if very lucky/unlucky).
+
+4. Changed constructor and tweak() for AdaptiveStrategy to reuse old successful conditions.
+Todo:
+
+Features for Strategy Group Report:
+	Keep track of the highest/lowest value for each category, as well as which strategy had that highest/lowest value

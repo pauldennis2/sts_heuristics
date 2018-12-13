@@ -1,0 +1,6 @@
+Level,Def War Weariness,Off. War Weariness,Peace Weariness,Bonus
+V Peace,Moderate,Massive,None,Peacetime
+Peace,Minor,Substantial,None,
+Middle,None,Minor,Minor,
+Aggressive,None,None,Moderate,
+V Aggressive,None,None,Substantial,Wartime

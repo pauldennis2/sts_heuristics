@@ -1,0 +1,32 @@
+1. Generified Condition into Conditional interface.
+
+2. Now supports complex conditions with and/or (can be nested, so (A || B) && C is possible)
+
+3. Changed the "tweak" mechanic to be an interface instead of repeated constructor methods
+
+4. Expanded DeckReport to have new fields based on information on powers
+
+5. Added time-out to combat (if not over in 30 rounds, the player loses)
+
+6. Tested monster abilities (mostly seems to be working)
+
+7. Added implementation for powers (mostly)
+
+To-do:
+
+1. Fix rounding error with monster abilities weakening attacks & vuln attacks
+
+2. Finish implementation of powers and test
+
+3. Implement ability to choose powers
+
+High-level todo:
+
+I. Be able to write out game parameters to file (see design notes)
+
+II. Change the list of preferences to be weighted rather than just a straight list
+	For example we can say that a condition adjusts the value of healing down to 0.5 or down by 0.5
+	
+III. True unit tests
+
+IV. Documentation, readme

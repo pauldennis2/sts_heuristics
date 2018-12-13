@@ -1,0 +1,9 @@
+starterCardsUnupgraded > 9.9
+powerStrPerTurn > powerHealPerTurn * 3.1
+maxHp < powerStaticDex * 2.3
+averageBlockPerCard > 8.4
+powerDexPerTurn > powerHealPerTurn * 2.0
+numCards < averageDamagePerCard * 0.4
+averageBlockPerCard > 6.4
+powerStrPerTurn > powerHealPerTurn * 2.1
+averageHealPerCard > 3.9

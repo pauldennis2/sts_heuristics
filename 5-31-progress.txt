@@ -1,0 +1,17 @@
+Spent the day (and much of yesterday) investigating inconsistencies in the data.
+
+One example that stuck out was for the strategy "river4227-river4223_imp1_mage1":
+
+river4227-river4223_imp1_mage1:42.74:{maxHp=0.53, upgradeCard=0.48, addCard=0.1, removeCard=0.04}:{healBlock=0.97, strikeExhaust=0.83, staticDex=0.82, strikeDefend=0.64, strPerTurn=0.64, staticStr=0.51, heal=0.39, dexPerTurn=0.3, ribbon=0.21, blockPerTurn=0.18, healPerTurn=0.16}:extraCard:numCards > 7.1-{removeCard=0.21}; numRibbons > numPowers * 1.9-{healPerTurn=0.23}; currentHp < numRibbons * 0.3-{removeCard=0.41, upgradeCard=0.05}; numCards < powerStaticDex * 0.8-{strikeDefend=0.8}
+
+This strategy was inserted into HOF with an average attainment of 42.74 (as seen above). This checks out with the details file.
+However, when running with "gritty" data, or running manually, we routinely saw attainment average closer to 48.
+This is WAY outside of the expected variability of ~0.2 or less for these run counts.
+
+Two puzzles:
+1. If the "actual average attainment" of this strat is 48 (as larger data sets show), how did it get consistently unlucky in its initial run?
+2. When this strategy was given children (over 50) why didn't one of them immediately jump up to ~48?
+
+Accomplishments:
+
+Wrote code to test the variability of an individual strategy (they aren't all the same).

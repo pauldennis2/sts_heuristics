@@ -1,0 +1,11 @@
+1. Created a true cross-breeding method.
+
+2. Tweaked existing breeding methods to use (1) and spend a lot less time on newly created strategies.
+
+3. Designed and implemented the unused condition purge. If a condition is unused in 3000 runs, it's removed
+	Right now only for HOF but could be extended to Potentials without trouble
+
+Todo:
+
+Write an analyzer for the HOF strategies
+Possibly analyze conditions that don't matter - but this is complicated and probably less fruitful

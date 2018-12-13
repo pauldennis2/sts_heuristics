@@ -1,0 +1,27 @@
+Ship Classes
+
+Galactic Colonization has 5 basic "classes" of warships, from the tiny Fighter to the gigantic Mothership. Each class has its advantages and disadvantages, in cost to produce, efficiency, etc. Larger classes of ships have the ability to field substantially more weapons and shields, as well as space internally for more cargo and amenities. Keep in mind that all ships are limited by the Power Crystal, and therefore a battleship with a new Power Crystal is going to be fairly useless and might even be taken down by a Destroyer (since the battleship's crystal doesn't produce enough power to really take advantage of its size). Also, of course technological progress and materials make a big difference - so an "elite" Destroyer equipped with higher-tier weapons could easily overpower a low-tech Cruiser or perhaps even Battleship.
+
+Basic
+
+Fighter - the smallest and most basic craft, with a single crewman. Fighters can perform basic scouting missions, but are unable to engage blockades, undertake science missions, or host diplomatic missions. Fighters are similar in size to fighter planes on Earth. Fighters are protected in combat by their maneuverability - they have a chance to dodge attacks.
+
+Destroyer - destroyers are the first ships with a real crew, capable of engaging all types of missions. A Destroyer could take out several similarly-equipped fighters.
+
+Cruiser - cruisers offer a slight edge in efficiency over Destroyers, with more firepower and space. Once cruisers are available, they are preferable to destroyers.
+
+Battleship - battleships are massive ship-o-the-line warships, capable of carrying far more weapons and guns than Destroyers or Cruisers. They are able to serve as Capitol ships for a Fleet. Battleships rely on having a strong Power Crystal to power themselves, but with one are far superior in combat to smaller ships. Battleships can host 1-2 Fighters that they can deploy at will (though this reduces the amount of cargo they can carry).
+
+Mothership - massive ships with nearly unlimited space for weapons, shields, and amenities, these flying fortresses require much larger crews and strong Power Crytals. 
+
+Upgrades
+
+For each ship, there is a more efficient upgraded hull available for discovery, which provides greater space for weapons, shields, and amenities. The hull is also stronger (there are essentially no disadvantages to using the upgraded form once you unlock it - it just costs slightly more).
+
+Starfighter - an upgrade to the Fighter, this turns fighters into more of a force to be reckoned with. Starfighters can carry certain types of amenities, and are more able to productively engage larger ships in combat.
+
+Frigate - upgrade to the Destroyer that places it more on par with a Cruiser.
+
+Dreadnought - an even more efficient massive warship, Dreadnoughts can trade fire with many other ships.
+
+Mobile Fortress - 

@@ -1,0 +1,36 @@
+Welcome to Galactic Colonization! This is a game of space exploration. It's very much undefined, but here are some things I can tell you to start:
+
+1. The game places an emphasis on exploration and active discovery. To be successful, you'll need to explore the galaxy in order to find rare and unique materials to build ships. All planets have some amount of basic resources, but rarer resources will need to be sought after.
+
+2. Don't take this game too literally - it's meant to be fun and a bit silly. Living spaceships which wield elemental powers?
+
+Power Crystals
+
+Power Crystals are the living, beating hearts of your starships. They provide power for all ship functions. Transport ships can run without them (because they don't have weapons or shields). All crystals have a "power matrix" which starts small, only able to generate enough power for a fighter, but grows over time and with experience completing missions. As the crystal's power matrix grows, it will be able to provide more power to the ship - but it will also start developing personality traits. The crystal might prefer certain types of missions, enjoy acquiring resources, be cowardly or bullheaded, etc. Some traits might be negative at first.
+
+Through the use of Greenstone, a rare resource, you will be able to influence the development of your power crystals - adding new traits you desire, upgrading existing traits, or removing undesirable traits.
+
+Elemental Powers
+
+There are four "Elemental Powers" in Galactic Colonization: Air, Water, Earth, and Fire. While adventuring through the game you may find shrines devoted to these powers. If you bring a Devotion Stone to one of these shrines, the Power Crystal will become "Devoted" to that element, and will have the opportunity to unlock that power. Each of your ships can be devoted to different powers, or the same power, or none.
+
+Air - Move like a leaf in the wind and dodge some attacks
+Water - Disperse attacks on the shield, and regenerate faster
+Earth - Stronger hull
+Fire - deal extra damage with attacks
+
+Fundamental Forces
+
+There are four "Fundamental Forces": Light, Darkness, Order, and Chaos. You may find shrines devoted to these forces. However, unlike Elemental Powers, the Fundamental Forces are more srs bsns. Your entire race can only be devoted to one Force. As you may have guessed, the Fundamental Forces are in opposition: Light to Darkness, Order to Chaos. Their powers cancel each other out to some extent. All ships with a Fundamental Force power will do some extra damage, which is amplified against ships of the opposing type.
+
+Light - Release a light pulse in combat, healing allies and damaging enemies
+Dark - Cloak the ship in shadow, making it invulnerable for a short time and regenerating shields
+Order - No chance of ship malfunction - bonus to defenses
+Chaos - Nearby enemy ships have increased chance to malfunction
+
+Secret Combos
+
+Mercury, Lord of Chaotic Winds
+Ombra, Lord of Dark Waters
+Terra, Lady of Orderstone
+Titania, Lady of Light and Fire

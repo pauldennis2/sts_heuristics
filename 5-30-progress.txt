@@ -1,0 +1,14 @@
+Keeping track of which methods produce the best results
+
+Recertify HOF
+
+Added confirmation for cross-breeding. 
+
+Thus far unable to determine how the "bad numbers" got in. (i.e. why Hall of Fame strats claimed average attainement in mid-50s but when tested actually came closer to 20.
+Best theory: the fact that AdaptiveStrategy was missing a hashCode() method screwed things up. This is fixed now. 
+
+Major accomplishments:
+
+1. I think I fixed the concurrency problems (more testing remains to be done)
+
+2. Added the "helped count" data to see which methods are producing the most results, and merged with the "high water" data into "metadata".

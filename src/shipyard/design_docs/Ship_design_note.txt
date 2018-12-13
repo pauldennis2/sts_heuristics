@@ -1,0 +1,11 @@
+To effect some of the design concepts you want (like unique/random materials), ships need a consistent set of Stats to be affected. Like Str, dex, con, etc.
+
+Stats:
+
+Reliability
+Toughness
+Agility
+Force
+Magic/Metaphysics?
+
+Just ideas but these are the terms to be thinking in.

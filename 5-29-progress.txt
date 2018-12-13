@@ -1,0 +1,12 @@
+1. Raised high water mark from 56.2 -> 57.9
+
+2. Changed the high-water mark file to be more informative.
+
+3. Added optimization to check after 100 runs. If we're not even close, just skip the next 400.
+
+4. Made the process reactive (if it hasn't improved, it gets more "desperate" and tries harder).
+
+5. Identified that there IS for sure a problem with how the attainments are calculated/stored.
+	Top strategy's attainment is marked as ~56 but actual average is closer to 20.
+	
+6. Created Readme.md and added a lot of description.

@@ -1,0 +1,33 @@
+Accomplished:
+
+1. Proved that threading does not prevent writing results
+
+2. Added DEFAULT_STRIKE_BLOCK_MAGNITUDE as a basis for creating cards. Imperfect, but a start.
+
+3. Balance changes:
+	At level 45 heroes choose a bonus (based on strategy)
+		One-time HP increase, per turn HP increase, 30% more powerful blocks, or an extra action per turn
+	At level 45 damage scaling increases back to level * 0.75 (Currently reduced to level * 0.5 at level 8)
+	At level 50, the hero is presented with increased choices
+		High level choices 2 -> 3
+		Card choices 2 reg, 1 power -> 3 reg, 2 power
+		
+4. Woot! Refactored out the static functionality of ClimbingGame into its own class (GameRunner).
+This creates good separation of concern between running an individual game (ClimbingGame's responsibility) and managing breeding strategies and recording results (GameRunner's responsibility).
+
+5. HOF no longer saves if empty
+
+6. Solved exponential name growth problem (at the cost of some data loss - well worth it)
+
+7. Added high water mark tracking.
+
+8. Slight change to how the strategy tweaks the values (doesn't need to throw out whole list now)
+
+Todo:
+
+Solve the mystery of why going from 40 hp to 400 had no effect on achievement
+
+Change how parent names are created (they're getting too long)
+	Bonus - doesn't require throwing out HOF data
+	
+Find out why gritty data seems inconsistent with hall of fame (average for top strat came out to 24)

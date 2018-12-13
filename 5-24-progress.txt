@@ -1,0 +1,43 @@
+Factors that made ribbon undesirable:
+
+Monster abilities only came up starting on level 15
+Monster abilities weren't that threatening
+Only 1/3 of abilities were status effects - if they didn't have a status effect, dead card
+Always prioritized for upgrading and it has no worth
+
+Changes
+
+Monster abilities gained at level 10, 25, 40, 50 (formerly 15, 25, 40)
+Vuln factor 0.05 -> 0.1
+Weak factor 0.04 -> 0.05
+Upgrade now removes any existing status effects
+Added poison (take increasing damage each round)
+Status effects no longer drop off after level 50
+If a monster rolls a status effect ability twice it'll be re-rolled
+
+Increased power of the base deck (strikes/blocks do 6, was 5)
+Increased value of heal to 6
+
+*Changed last monster ability to level 60 (too many strategies died on early 50s)
+
+Speed Notes:
+Takes around 6 minutes to run through the full breeding strategy
+Times (s):
+390
+405
+*Slight change made
+351
+395
+
+Games per run: 1,540,000
+
+Looking for ways to speed up the process:
+	Use a thread pool for each strategy
+	After 100 runs, evaluate the strategy. If it's not close, stop
+	
+Used thread pools. After implementation, times dropped to:
+Times (s):
+58
+	
+Todo:
+Figure out why the Dex Per Turn upgrades to have 3 magnitude instead of 2

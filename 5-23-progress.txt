@@ -1,0 +1,21 @@
+Progress today
+
+1. Fixed CompositeCondition text constructor (building block for manual serialization)
+
+2. Completed switchover to Values from Preferences (mostly)
+
+3. Added the RoundedDoubleMap for prettier prints.
+
+4. Removed altersHighLevelPrefs. Conditions can now alter a mix (as they wish)
+
+5. Tested gritty data - it works!
+
+6. Game is back to working!
+
+Todos:
+Test the real breeding methods
+Write data about the overall progress we're making
+Figure out ways to optimize the game-running process
+Add cross-breeding back into the mix
+Figure out why ribbon sucks. I thought it would be tops!
+Sum up the todos

@@ -1,0 +1,11 @@
+Progress today
+
+Changed the way the "results" from the conditionsAndResultsMap work.
+It's now conditionsAndValues, and instead of having a list of strings it has a Map<String, Double> which is then sorted later.
+
+This allows for a lot more flexibility in creating conditions because they don't have to change the whole list, they can just make one thing more or less important.
+
+Todo:
+Change the tweak functionality of AdaptiveStrategy to take advantage of CompositeConditions.
+	Sometimes take an existing condition (or two?) and make it composite
+	Sometimes create a new composite condition

@@ -1,0 +1,50 @@
+Design ideas to make the game more complex:
+
+1. Add powers. This gives more potential in later fights which last longer.
+
+2. Make monster damage less indomitable. Possibly after level 10 monster damage rises at a level of 1/2 levels
+
+3. Add other new cards or effects?
+
+OK, new power cards (uncommon)
+
+Every turn, deal x damage.
+Every turn, heal x.
+Every turn, block x.
+Immune to status ailments
+Increase strength by 2
+Increase dexterity by 2
+
+Starting at level 15, monsters gain one of the following:
+Damage reduction 1
+Weakening attacks (monsters attacks reduce your damage to 80%)
+Heal 2 per turn
+Increase str by 1 per turn
+Vulnerable attacks (monsters attack increases your damage taken by 5% for the rest of the round)
+Grow hp (hp *= 1.3)
+
+At 25, monsters gain another ability
+
+
+-------------------------------
+
+Closing notes for Friday:
+The Hall of Fame problem seems to be solved!
+But we are not making any progress on finding better strategies.
+
+Monster abilities are almost fully added to the game.
+In the process of adding "powers" into the game.
+	The "strength" and "damage" powers may be a pain because a hero (unlike a monster) doesn't have damage - they have cards.
+	
+Most fields are private now - wouldn't hurt to check around and just make this universal.
+
+Todos (in addition to above):
+Expand DeckReport to analyze powers.
+Make this its own project and add a readme.md
+Work on documentation
+Long-term - write out the game parameters to file
+	How much damage basic strikes do, how fast monster hp grows, etc
+	How much upgraded cards gain
+	How much dual function cards do (i.e. strike + block does 4 of each rather than 5)
+	Some of these properties are just simple numbers and can be easily read from file (such as the value of upgrades - it's a simple static value)
+	Other properties (like monster damage growth rate) are more complex and probably not worth writing to file

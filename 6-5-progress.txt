@@ -1,0 +1,16 @@
+Accomplishments:
+
+1. Determined definitively that the weird behavior is related to multi-threading with the following experiment:
+	Took a given strategy (happened to be the top HOF, but could work with anything)
+	Ran it by itself multithreaded. Attainment results ranged from 26-30
+	Ran it in a group with other strategies (normal program flow). Attainment results were grouped around 9 or 55 (none/few in the middle)
+	Switched to single-thread approach.
+	Redid the experiment. Attainment results were the same (around 26-30) whether other strats were included or not
+	
+2. Fixed the details process to only create a folder if it has data to put in it.
+
+3. Implemented a three-tiered pruning/optimization process.
+
+Todo:
+
+Get multithreading working again or work on better optimization. Current process is too srow.

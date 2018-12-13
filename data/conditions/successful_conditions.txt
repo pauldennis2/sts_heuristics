@@ -1,0 +1,13 @@
+unupgradedNonStarterCards < 7.1-{addCard=0.82, removeCard=0.6, upgradeCard=0.39}
+unupgradedNonStarterCards > 1.4-{strikeDefend=0.85, addCard=0.07, dexPerTurn=0.01}
+unupgradedNonStarterCards > 1.4-{strikeDefend=0.78, addCard=0.49, dexPerTurn=0.2}
+unupgradedNonStarterCards > 1.4-{dexPerTurn=0.2, addCard=0.19, strikeDefend=0.12}
+powerBlockPerTurn > 9.5-{addCard=0.55, upgradeCard=0.07}
+unupgradedNonStarterCards > 1.4-{strikeDefend=0.79, addCard=0.24, dexPerTurn=0.22}
+unupgradedNonStarterCards > 1.8-{strikeDefend=0.78, dexPerTurn=0.07, addCard=0.04}
+unupgradedNonStarterCards > 1.8-{strikeDefend=0.42, addCard=0.31, dexPerTurn=0.23}
+unupgradedNonStarterCards > 1.4-{strikeDefend=0.29, addCard=0.12, dexPerTurn=0.12}
+unupgradedNonStarterCards > 1.6-{strikeDefend=0.86, dexPerTurn=0.4, addCard=0.11}
+unupgradedNonStarterCards > 1.8-{dexPerTurn=0.13, strikeDefend=0.05, addCard=0.03}
+unupgradedNonStarterCards > 1.4-{strikeDefend=0.57, addCard=0.54, dexPerTurn=0.4}
+numPowers > 7.2-{upgradeCard=0.58}
