@@ -22,7 +22,6 @@ public class HallOfFame {
 	static final String FAMERS_FILE_LOC = ROOT_DIR + "hall_of_fame.txt";
 	static final String POTENTIALS_FILE_LOC = ROOT_DIR + "potentials.txt";
 	static final String FORMER_HOF = ROOT_DIR + "old/former_hof_";
-	static final String HIGH_WATER = ROOT_DIR + "high_water.txt";
 	static final int MAX_NUM_FAMERS = 20;
 	static final int MAX_NUM_POTENTIALS = 200;
 	
@@ -51,13 +50,15 @@ public class HallOfFame {
 		if (SAVE_OLD_HOF) {
 			writeOldFamers();
 		} else {
-			System.out.println("In Test Mode - not making any file changes.");
+			if (GameRunner.OUTPUT_LEVEL >= 0) {
+				System.out.println("In Test Mode - not making any file changes.");
+			}
 		}
 	}
 	
 	public int addPotentialMembers (List<AdaptiveStrategy> newPotentials) {
 		detailedDirectory = ROOT_DIR + "details/" + System.currentTimeMillis() + "/";
-		new File(detailedDirectory).mkdirs();
+		
 		System.out.println("\tEvaluating " + newPotentials.size() + " new potentials.");
 		System.out.println("\tFamers require a minimum of: " + famersMinAttainmentNeeded);
 		System.out.println("\tPotentials require a minimum of: " + potentialsMinAttainmentNeeded);
@@ -82,7 +83,17 @@ public class HallOfFame {
 		return numFamersAdded;
 	}
 	
+	public void setFamers (List<AdaptiveStrategy> strategies) {
+		System.err.println("!!Warning!! This method should only be called after the purgeConditions operation.");
+		if (strategies.size() != 20) {
+			throw new AssertionError("Wrong input list size");
+		}
+		famers = strategies;
+	}
+	
 	private void writeAttainmentData (AdaptiveStrategy strategy) {
+		File detailedFileDirectory = new File(detailedDirectory);
+		detailedFileDirectory.mkdirs();
 		List<Integer> attainment = strategy.getAttainment();
 		if (attainment == null || attainment.size() == 0) {
 			System.err.println("Attainment data is null/empty for strategy " + strategy.getName());
@@ -91,11 +102,11 @@ public class HallOfFame {
 		String data = attainment.toString();
 		data = data.substring(1, data.length() - 1);
 		try {
-			String thisDirectory = detailedDirectory + strategy.getName() + ".txt";
+			String thisDirectory = detailedDirectory + strategy.getName() + "_details.txt";
 			File detailFile = new File(thisDirectory);
 			boolean created = detailFile.createNewFile();
 			if (!created) {
-				System.err.println("Expected no file to be here: " + detailedDirectory);
+				System.err.println("Expected no file to be here: " + thisDirectory);
 			}
 			Files.write(Paths.get(thisDirectory), data.getBytes(), StandardOpenOption.WRITE);
 		} catch (IOException ex) {

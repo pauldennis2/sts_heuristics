@@ -17,11 +17,11 @@ public class CompositeCondition implements Conditional {
 	public CompositeCondition ()  {
 		Random r = new Random();
 		if (r.nextBoolean()) {
-			first = new SingleCondition(r);
+			first = SingleCondition.getRandomCondition();
 		} else {
 			first = new CompositeCondition();
 		}
-		second = new SingleCondition(r);
+		second = SingleCondition.getRandomCondition();
 		isAnd = r.nextBoolean();
 	}
 	
@@ -33,75 +33,7 @@ public class CompositeCondition implements Conditional {
 		
 		priorityLevel = 1;
 	}
-	/*
-	public CompositeCondition (String text) {
-		char[] charArray = text.toCharArray();
-		String textNotInsideParens = "";
-		int openParenCount = 0;
-		for (int i = 0; i < charArray.length; i++) {
-			if (charArray[i] == '(') {
-				openParenCount++;
-			} else if (charArray[i] == ')') {
-				openParenCount--;
-			} else if (openParenCount == 0){
-				textNotInsideParens += charArray[i];
-			}
-		}
-		String splitter;
-		if (textNotInsideParens.contains("&&")) {
-			splitter = "&&";
-			isAnd = true;
-		} else if (textNotInsideParens.contains("||")) {
-			splitter = "\\|\\|";
-			isAnd = false;
-		} else {
-			throw new AssertionError("Cannot parse this text to a compositeCondition: " + text);
-		}
-		String[] parts;
-		if (text.contains("-")) {
-			String notTheLastBit = text.split("-")[0].trim();
-			parts = notTheLastBit.split(splitter);
-		} else {
-			parts = text.split(splitter);
-		}
-		int index = 0;
-		for (String part : parts) {
-			part = part.trim();
-			if (!part.startsWith("(") || !part.endsWith(")")) {
-				System.err.println("Failed with overall input: " + text);
-				System.err.println("Parts were:");
-				//System.err.println(parts);
-				for (String p2 : parts) {
-					System.err.println(p2);
-				}
-				throw new AssertionError("Bad format. Expected parens at beginning and end. String was *" + part + "*");
-			}
-			String conditionText = part.substring(1, part.length() - 1);
-			if (conditionText.contains("&&") || conditionText.contains("||")) {
-				if (index == 0) {
-					first = new CompositeCondition(conditionText);
-				} else {
-					second = new CompositeCondition(conditionText);
-				}
-			} else {
-				conditionText = conditionText.replaceAll("[()]", "");
-				if (index == 0) {
-					first = new SingleCondition(conditionText);
-				} else {
-					second = new SingleCondition(conditionText);
-				}
-			}
-			index++;
-		}
-		if (text.contains("*HLP*")) {
-			altersHighLevelPrefs = true;
-		} else if (text.contains("*Cards*")) {
-			altersHighLevelPrefs = false;
-		} else {
-			altersHighLevelPrefs = null;
-		}
-	}*/
-	
+
 	public CompositeCondition (String text) {
 		char[] charArray = text.toCharArray();
 		StringBuilder textNotInsideParens = new StringBuilder();

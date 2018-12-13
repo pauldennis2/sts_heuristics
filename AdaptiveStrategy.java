@@ -12,11 +12,13 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.Scanner;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 public class AdaptiveStrategy extends StrategyBase implements Tweakable {
@@ -39,7 +41,7 @@ public class AdaptiveStrategy extends StrategyBase implements Tweakable {
 	//Like "peruse-dragon98". 1,000,000 possibilities
 	public final static List<String> NAME_FRAGMENTS = Arrays.asList("fierce", "strong", "silly", "react", "strike", "deny",
 			"speak", "adapt", "seek", "frothy", "shake", "stir", "heal", "stompy", "newly", "prime", "singe", "sear",
-			"strife", "happy", "kooky", "strange", "finish", "demand", "oblong", "peruse", "rogue",
+			"strife", "happy", "kooky", "hobbit", "finish", "demand", "oblong", "peruse", "rogue",
 			"copy", "joyful", "white", "green", "guard", "dragon", "delete", "verify", "curse", "grace",
 			"arch", "plated", "smash", "crush", "death", "honor", "scar", "ranger", "sharp", "evade",
 			"river", "brook", "lava", "shield", "sword", "cube", "galaxy", "moon", "star", "burst", "snow",
@@ -52,6 +54,9 @@ public class AdaptiveStrategy extends StrategyBase implements Tweakable {
 	public final static List<String> BONUS_CHOICES = Arrays.asList("extraCard", "strongerBlock",
 			"bulkHpIncrease", "perTurnHpIncrease");
 	public final static List<String> CARDS = Card.ALL_CARD_NAMES;
+	
+	public static final String SUCCESSFUL_CONDITIONS_FILE = "data/conditions/successful_conditions.txt";
+	private static Set<ConditionAndValues> successfulConditionsAndValues;
 	
 	private Map<String, Double> cardValues;
 	private Map<String, Double> hlpValues;
@@ -83,29 +88,29 @@ public class AdaptiveStrategy extends StrategyBase implements Tweakable {
 
 		//Create 0-2 high level pref conditions and 0-2 card pref conditions
 		int conditionsCount = 0;
-		while (r.nextBoolean() || r.nextBoolean()) {
-			Map<String, Double> values = getRandomValues(HLPS);
-			
-			if (r.nextBoolean() || r.nextBoolean()) {
-				conditionsAndValuesMap.put(new SingleCondition(r), values);
-			} else {
-				conditionsAndValuesMap.put(new CompositeCondition(), values);
-			}
-			
-			conditionsCount++;
-			if (conditionsCount >= 2) {
-				break;
-			}
-		}
-		conditionsCount = 2;//A little weird but we don't want 4 card conditions
-		while (r.nextBoolean()) {
-			//Alter card prefs
-			Map<String, Double> values = getRandomValues(CARDS);
-			
-			if (r.nextBoolean() || r.nextBoolean()) {
-				conditionsAndValuesMap.put(new SingleCondition(r), values);
-			} else {
-				conditionsAndValuesMap.put(new CompositeCondition(), values);
+		while (r.nextDouble() > 0.25) {
+			if (r.nextBoolean()) { //Create a new condition/values pair
+				Map<String, Double> values = getRandomValues(HLPS, CARDS);
+				
+				if (r.nextBoolean() || r.nextBoolean()) {
+					conditionsAndValuesMap.put(SingleCondition.getRandomCondition(), values);
+				} else {
+					conditionsAndValuesMap.put(new CompositeCondition(), values);
+				}
+			} else { //Use a previously successful condition
+				if (successfulConditionsAndValues == null) {
+					successfulConditionsAndValues = readSuccessfulConditionsFromFile();
+				}
+				ConditionAndValues cv = successfulConditionsAndValues.stream().collect(Collectors.toList())
+						.get(r.nextInt(successfulConditionsAndValues.size() - 1));
+				Conditional condition = cv.getCondition();
+				Map<String, Double> values;
+				if (r.nextBoolean()) { //Keep the values from previously successful condition
+					values = cv.getValues();
+				} else { //Generate new random values
+					values = getRandomValues(HLPS, CARDS);
+				}
+				conditionsAndValuesMap.put(condition, values);
 			}
 			
 			conditionsCount++;
@@ -224,7 +229,7 @@ public class AdaptiveStrategy extends StrategyBase implements Tweakable {
 	
 	private static String getShorterName (String name) {
 		Random r = new Random();
-		name = name.substring(0, 10) + "_" + NAME_FRAGMENTS.get(r.nextInt(NAME_FRAGMENTS.size()));
+		name = name.substring(0, 10) + "_" + NAME_FRAGMENTS.get(r.nextInt(NAME_FRAGMENTS.size() - 1));
 		return name;
 	}
 	
@@ -279,10 +284,26 @@ public class AdaptiveStrategy extends StrategyBase implements Tweakable {
 					newStrat.conditionsAndValuesMap.put(toTweak, valuesToTweak);
 				}
 			} else { //Add/remove a condition
+				if (successfulConditionsAndValues == null) {
+					successfulConditionsAndValues = readSuccessfulConditionsFromFile();
+				}
 				if (r.nextBoolean() || numConditions < 2) { //Add a condition
-					Conditional condition = new SingleCondition (r);
-					Map<String, Double> values = getRandomValues(HLPS, CARDS);
-					newStrat.conditionsAndValuesMap.put(condition, values);
+					if (r.nextBoolean() || successfulConditionsAndValues.size() == 0) { //Add a totally new condition
+						Conditional condition = SingleCondition.getRandomCondition();
+						Map<String, Double> values = getRandomValues(HLPS, CARDS);
+						newStrat.conditionsAndValuesMap.put(condition, values);
+					} else { //Add a previously successful condition
+						ConditionAndValues cv = successfulConditionsAndValues.stream().collect(Collectors.toList())
+								.get(r.nextInt(successfulConditionsAndValues.size() - 1));
+						Conditional condition = cv.getCondition();
+						Map<String, Double> values;
+						if (r.nextBoolean()) { //Keep the values from previously successful condition
+							values = cv.getValues();
+						} else { //Generate new random values
+							values = getRandomValues(HLPS, CARDS);
+						}
+						newStrat.conditionsAndValuesMap.put(condition, values);
+					}
 				} else if (numConditions >= 2) { //Remove a condition
 					Conditional cond = conditionsAndValuesMap.keySet().stream().collect(Collectors.toList()).get(0);
 					newStrat.conditionsAndValuesMap.remove(cond);
@@ -308,7 +329,68 @@ public class AdaptiveStrategy extends StrategyBase implements Tweakable {
 		return newStrat;
 	}
 	
+	public static void addSuccessfulConditionsValues (Set<ConditionAndValues> successful) {
+		if (successfulConditionsAndValues == null) {
+			successfulConditionsAndValues = readSuccessfulConditionsFromFile(SUCCESSFUL_CONDITIONS_FILE);
+		}
+		successfulConditionsAndValues.addAll(successful);
+		
+		writeSuccessfulConditionsToFile();
+	}
+	
+	private static Set<ConditionAndValues> readSuccessfulConditionsFromFile () {
+		return readSuccessfulConditionsFromFile(SUCCESSFUL_CONDITIONS_FILE);
+	}
+	
+	private static Set<ConditionAndValues> readSuccessfulConditionsFromFile (String fileName) {
+		Set<ConditionAndValues> successful = new HashSet<>();
+		try (Scanner scanner = new Scanner(new File(fileName))) {
+			while (scanner.hasNextLine()) {
+				String line = scanner.nextLine();
+				String[] tokens = line.split("-");
+				String conditionString = tokens[0];
+				Conditional condition;
+				if (conditionString.contains("&&") || conditionString.contains("||")) {
+					condition = new CompositeCondition(conditionString);
+				} else {
+					condition = new SingleCondition(conditionString);
+				}
+				Map<String, Double> values = new RoundedDoubleMap();
+				String[] resultsTokens = tokens[1].split(",");
+				for (String resultsToken : resultsTokens) {
+					resultsToken = resultsToken.replaceAll("[\\{\\} ]", "");
+					String[] split = resultsToken.split("=");
+					values.put(split[0], Double.parseDouble(split[1]));
+				}
+				successful.add(new ConditionAndValues(condition, values));
+			}
+		} catch (FileNotFoundException ex) {
+			System.err.println("Problem reading from file: " + fileName);
+			ex.printStackTrace();
+		} catch (Exception ex) {
+			System.err.println("Some kind of error with file format probably. See below.");
+			ex.printStackTrace();
+		}
+		return successful;
+	}
+	
+	private static void writeSuccessfulConditionsToFile () {
+		try (FileWriter fileWriter = new FileWriter(new File(SUCCESSFUL_CONDITIONS_FILE))) {
+			for (ConditionAndValues condition : successfulConditionsAndValues) {
+				fileWriter.write(condition.toString());
+				fileWriter.write("\n");
+			}
+		} catch (IOException ex) {
+			System.err.println("Problem writing to file: " + SUCCESSFUL_CONDITIONS_FILE);
+			ex.printStackTrace();
+		}
+	}
+
+	
 	public synchronized void addAttainment (int level) {
+		if (GameRunner.OUTPUT_LEVEL > 1) {
+			System.out.println(this.name + " attained " + level + ".");
+		}
 		attainment.add(level);
 	}
 	
@@ -473,6 +555,28 @@ public class AdaptiveStrategy extends StrategyBase implements Tweakable {
 	}
 	
 	public static void main(String[] args) {
+		testReadWriteSuccessful();
+	}
+	
+	public static void testReadWriteSuccessful () {
+		successfulConditionsAndValues = readSuccessfulConditionsFromFile(SUCCESSFUL_CONDITIONS_FILE);
+		successfulConditionsAndValues.forEach(System.out::println);
+		
+		for (int i = 0; i < 3; i++) {
+			SingleCondition condition = SingleCondition.getRandomCondition();
+			Map<String, Double> values = getRandomValues(HLPS);
+			ConditionAndValues thing = new ConditionAndValues(condition, values);
+			successfulConditionsAndValues.add(thing);
+			System.out.println(thing);
+		}
+		
+		writeSuccessfulConditionsToFile();
+		
+		successfulConditionsAndValues = readSuccessfulConditionsFromFile(SUCCESSFUL_CONDITIONS_FILE);
+		successfulConditionsAndValues.forEach(System.out::println);
+	}
+	
+	public static void someTests () {
 		//test2ParentNameGeneration();
 		for (int i = 0; i < 5; i++) {
 			AdaptiveStrategy strat = new AdaptiveStrategy(new Hero());
@@ -481,8 +585,8 @@ public class AdaptiveStrategy extends StrategyBase implements Tweakable {
 			
 			AdaptiveStrategy rebuilt = new AdaptiveStrategy(fileString);
 			if (!rebuilt.equals(strat)) {
-				System.out.println("Not equal!");
-				System.out.println("rebuilt = \n" + rebuilt.getFileString());
+				System.err.println("Not equal!");
+				System.err.println("rebuilt = \n" + rebuilt.getFileString());
 			}
 			System.out.println("-------");
 		}
@@ -532,7 +636,7 @@ public class AdaptiveStrategy extends StrategyBase implements Tweakable {
 		return getPreferences(false);
 	}
 	
-	private List<String> getPreferences (boolean highLevel) {
+	protected List<String> getPreferences (boolean highLevel) {
 		DeckReport report = new DeckReport(hero);
 		List<Conditional> liveConditions = conditionsAndValuesMap.keySet().stream()
 			.filter(condition -> condition.evaluate(report))
@@ -738,7 +842,7 @@ public class AdaptiveStrategy extends StrategyBase implements Tweakable {
 		return conditionsAndValuesMap;
 	}
 
-	public void setConditionsAndResultsMap(Map<Conditional, Map<String, Double>> conditionsAndValuesMap) {
+	public void setConditionsAndValuesMap(Map<Conditional, Map<String, Double>> conditionsAndValuesMap) {
 		this.conditionsAndValuesMap = conditionsAndValuesMap;
 	}
 
@@ -780,5 +884,9 @@ public class AdaptiveStrategy extends StrategyBase implements Tweakable {
 	
 	public List<Integer> getAttainment () {
 		return attainment;
+	}
+	
+	public Hero getHero () {
+		return hero;
 	}
 }

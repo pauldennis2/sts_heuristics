@@ -4,11 +4,17 @@
  */
 package sts_heuristics;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.text.DecimalFormat;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
 import java.util.Scanner;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 public class SingleCondition implements Conditional {
@@ -30,6 +36,9 @@ public class SingleCondition implements Conditional {
 	transient double averageAttainment;
 	
 	static List<String> FIELD_NAMES = Arrays.stream(DeckReport.class.getFields()).map(field -> field.getName()).collect(Collectors.toList());
+	public static final String UNUSED_CONDITIONS_FILE = "data/conditions/unused_conditions.txt";
+	
+	private static Set<Conditional> unusedConditions;
 	
 	//Format: "$firstFieldName < $secondFieldName * $ratio
 	public SingleCondition (String text) {
@@ -64,7 +73,45 @@ public class SingleCondition implements Conditional {
 		validate();
 	}
 	
-	public static void main(String[] args) {
+	public static void addUnusedConditions (Set<Conditional> unused) {
+		if (unusedConditions == null) {
+			unusedConditions = readUnusedConditionsFromFile(UNUSED_CONDITIONS_FILE);
+		}
+		unusedConditions.addAll(unused);
+		
+		writeUnusedConditionsToFile();
+	}
+	
+	private static Set<Conditional> readUnusedConditionsFromFile (String fileName) {
+		Set<Conditional> unusedConditions = new HashSet<>();
+		try (Scanner scanner = new Scanner(new File(fileName))) {
+			while (scanner.hasNextLine()) {
+				String line = scanner.nextLine();
+				if (line.contains("&&") || line.contains("||")) {
+					unusedConditions.add(new CompositeCondition(line));
+				} else {
+					unusedConditions.add(new SingleCondition(line));
+				}
+			}
+		} catch (FileNotFoundException ex) {
+			System.err.println("Error reading from " + fileName + ".");
+			ex.printStackTrace();
+		}
+		return unusedConditions;
+	}
+	
+	private static void writeUnusedConditionsToFile () {
+		File directory = new File("data/conditions/");
+		directory.mkdirs();
+		try (FileWriter fileWriter = new FileWriter(new File(UNUSED_CONDITIONS_FILE))) {
+			for (Conditional condition : unusedConditions) {
+				fileWriter.write(condition.toString());
+				fileWriter.write("\n");
+			}
+		} catch (IOException ex) {
+			System.err.println("Error writing to " + UNUSED_CONDITIONS_FILE + ".");
+			ex.printStackTrace();
+		}
 	}
 	
 	public static void testTextBasedConditionCreation () {
@@ -89,32 +136,40 @@ public class SingleCondition implements Conditional {
 		
 	}
 	
-	public SingleCondition (Random r) {
-		firstFieldName = FIELD_NAMES.get(r.nextInt(FIELD_NAMES.size()));
-		compareToConstant = r.nextBoolean();
+	public static SingleCondition getRandomCondition () {
+		Random r = new Random();
+		SingleCondition condition = new SingleCondition();
+		condition.firstFieldName = FIELD_NAMES.get(r.nextInt(FIELD_NAMES.size()));
+		condition.compareToConstant = r.nextBoolean();
 		DecimalFormat decFormat = new DecimalFormat("#.#");
-		if (compareToConstant) {
+		if (condition.compareToConstant) {
 			//Constant from 0.1 to 10.1
 			double c = r.nextDouble() * 10 + 0.1;
 			//Rounded to nearest 0.1
-			constant = Double.parseDouble(decFormat.format(c));
+			condition.constant = Double.parseDouble(decFormat.format(c));
 		} else {
-			secondFieldName = FIELD_NAMES.get(r.nextInt(FIELD_NAMES.size()));
-			while (secondFieldName.equals(firstFieldName)) {
-				secondFieldName = FIELD_NAMES.get(r.nextInt(FIELD_NAMES.size()));
+			condition.secondFieldName = FIELD_NAMES.get(r.nextInt(FIELD_NAMES.size()));
+			while (condition.secondFieldName.equals(condition.firstFieldName)) {
+				condition.secondFieldName = FIELD_NAMES.get(r.nextInt(FIELD_NAMES.size()));
 			}
-			byRatio = r.nextBoolean();
-			if (byRatio) {
+			condition.byRatio = r.nextBoolean();
+			if (condition.byRatio) {
 				//Ratio from 0.3 to 3.0
 				double d = r.nextDouble() * 2.7 + 0.3;
 				//Rounded to nearest 0.1
-				ratio = Double.parseDouble(decFormat.format(d));
+				condition.ratio = Double.parseDouble(decFormat.format(d));
 			}
 		}
-		greaterThan = r.nextBoolean();
-		priorityLevel = 0;
-		
-		validate();
+		condition.greaterThan = r.nextBoolean();
+		condition.priorityLevel = 0;
+		if (unusedConditions == null) {
+			unusedConditions = readUnusedConditionsFromFile(UNUSED_CONDITIONS_FILE);
+		}
+		if (unusedConditions.contains(condition)) {
+			return getRandomCondition();
+		}
+		condition.validate();
+		return condition;
 	}
 	
 	//Take an "old" condition that was fairly successful and tweak it a little

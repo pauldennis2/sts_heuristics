@@ -4,8 +4,10 @@
  */
 package sts_heuristics;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 public class CountMap<K> {
 
@@ -21,5 +23,32 @@ public class CountMap<K> {
 		} else {
 			countMap.put(k, 1);
 		}
+	}
+	
+	public void addInitialZeroCount (Collection<K> group) {
+		for (K k : group) {
+			countMap.put(k, 0);
+		}
+	}
+	
+	public Map<K, Integer> getMap () {
+		return countMap;
+	}
+	
+	public Integer get (K k) {
+		return countMap.get(k);
+	}
+	
+	@Override
+	public String toString () {
+		Class<? extends Object> class1 = countMap.keySet().stream().collect(Collectors.toList()).get(0).getClass();
+
+		String response = "CountMap for " + class1.getSimpleName() + "s";
+		
+		for (K k : countMap.keySet()) {
+			response += "\n\t" + k + ", " + countMap.get(k);
+		}
+		
+		return response;
 	}
 }

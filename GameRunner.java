@@ -16,10 +16,13 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Scanner;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -33,7 +36,12 @@ public class GameRunner {
 	private ExecutorService threadService;
 	private AtomicLong optimizedCount;
 	
+	@SuppressWarnings("unused")
+	private int optimizedCount2;
+	
 	private int timesSinceImprovement;
+	
+	List<AdaptiveStratWithRecording> measuredStrats;
 	
 	//Family of variables to help keep track of which meta-strategies produce the most results
 	private long seedStratCount = 0;
@@ -50,12 +58,13 @@ public class GameRunner {
 	public static final String METADATA_FILE = ROOT_DIR + "metadata.txt";
 
 	public static final String TIMES_SINCE_IMPROVEMENT = ROOT_DIR + "times_since_improvement.txt";
-	//private static int OUTPUT_LEVEL = 0;
+	public static int OUTPUT_LEVEL = 0;
 	
 	private double bestHof;
 	
 	public GameRunner () {
 		optimizedCount = new AtomicLong(0);
+		optimizedCount2 = 0;
 		hallOfFame = new HallOfFame();
 		List<AdaptiveStrategy> famers = hallOfFame.getFamers();
 		if (famers.size() > 0 && famers.get(0) != null) {
@@ -72,44 +81,199 @@ public class GameRunner {
 			System.err.println("!!Bad file format for times since improvement. Setting it to 0.");
 			timesSinceImprovement = 0;
 		}
-		System.out.println("Times since improvement = " + timesSinceImprovement);
+		if (OUTPUT_LEVEL >= 0) {
+			System.out.println("Times since improvement = " + timesSinceImprovement);
+		}
 	}
 	
 	public static void main(String[] args) {
-		//new GameRunner().run();
-		new GameRunner().getGrittyHallOfFameData();
-		//new GameRunner().testHallOfFameVariability();
+		GameRunner runner = new GameRunner();
+		
+		runner.getGrittyHallOfFameData();
 	}
 	
-	public void smallTest () {
+	public void evaluateFamersConditions () {
+		purgeUnusedConditions(hallOfFame.getFamers());
+		evaluateConditions(hallOfFame.getFamers());
+	}
+	
+	public void analyzeHof () {
+		StrategyGroupReport report = new StrategyGroupReport(hallOfFame.getFamers());
+		System.out.println(report);
+	}
+	
+	//Uses the runStrategies() method to run the strat.
+	public double runStrategyWithRunStrategies (String name, int numDummies, boolean multiThread, int numTimes) {
 		List<AdaptiveStrategy> strategies = new ArrayList<>();
-		for (int i = 0; i < 10; i++) {
-			strategies.add(new AdaptiveStrategy(new Hero()));
-		}
-		System.out.println("Created ten strategies.");
-		for (AdaptiveStrategy strategy : strategies) {
-			System.out.println("Running " + strategy.getName() + " ten times:");
-			int sum = 0;
-			for (int i = 0; i < 10; i++) {
-				int result = new ClimbingGame(strategy).playGame();
-				sum += result;
-				System.out.println("\tLost on: " + result);
-				strategy.addAttainment(result);
+		List<AdaptiveStrategy> famers = hallOfFame.getFamers();
+		AdaptiveStrategy theOne = null;
+		for (AdaptiveStrategy strategy : famers) {
+			if (strategy.getName().equals(name)) {
+				theOne = strategy;
 			}
-			double average = (double) sum / 10.0;
-			System.out.println("Average: " + average);
 		}
-		calcAverageAttainment(strategies);
+		if (theOne != null) {
+			System.out.println("Creating " + numDummies + " dummy strategies for testing.");
+			for (int i = 0; i < numDummies; i++) {
+				strategies.add(new AdaptiveStrategy(new Hero()));
+			}
+			strategies.add(theOne);
+			if (multiThread) {
+				runStrategiesMultiThread(strategies, numTimes);
+			} else {
+				runStrategies(strategies, numTimes);
+			}
+			if (OUTPUT_LEVEL >= 1) {
+				for (AdaptiveStrategy strat : strategies) {
+					System.out.println("\t" + strat.getName() + " : " + strat.getAttainment());
+				}
+			}
+			System.out.println(name + " achieved average attainment of " + theOne.getAverageLevelAttained() + ".");
+			return theOne.getAverageLevelAttained();
+		} else {
+			System.err.println("Couldn't find " + name + ".");
+			return 0.0;
+		}
+	}
+	
+	public void getGrittyDetailsOnConditionsOfHOF () {
+		measuredStrats = 
+				AdaptiveStratWithRecording.buildRecordingStrategiesFromFile(ROOT_DIR + "hall_of_fame.txt");
 		
-		System.out.println("Adding to HOF...");
-		hallOfFame.addPotentialMembers(strategies);
-		hallOfFame.close();
+		for (AdaptiveStratWithRecording strategy : measuredStrats) {
+			for (int i = 0; i < 3000; i++) {
+				new ClimbingGame(strategy).playGame();
+			}
+		}
+	}
+	
+	public List<AdaptiveStrategy> evaluateConditions (List<AdaptiveStrategy> strategies) {
+		
+		//Run each strategy to determine a baseline
+		for (AdaptiveStrategy famer : strategies) {
+			for (int i = 0; i < 1000; i++) {
+				int result = new ClimbingGame(famer).playGame();
+				famer.addAttainment(result);
+			}
+		}
+		
+		calcAverageAttainment(strategies);
+		Set<ConditionAndValues> goodConditions = new HashSet<>();
+		//Run each strategy with a partial lobotomy.
+		for (AdaptiveStrategy strategy : strategies) {
+			System.out.println("Analyzing " + strategy.getName() + " by removing one condition at a time.");
+			Map<Conditional, Double> attainmentWithConditionsRemoved = new HashMap<>();
+			for (Conditional condition : strategy.getConditionsAndValuesMap().keySet()) {
+				AdaptiveStrategy copy = strategy.getCopy();
+				Map<Conditional, Map<String, Double>> conditionsAndValuesMap = copy.getConditionsAndValuesMap();
+				conditionsAndValuesMap.remove(condition);
+				copy.setConditionsAndValuesMap(conditionsAndValuesMap);
+				int sum = 0;
+				for (int i = 0; i < 1000; i++) {
+					sum += new ClimbingGame(copy).playGame();
+				}
+				double average = (double) sum / 1000.0;
+				
+				attainmentWithConditionsRemoved.put(condition, average);
+			}
+			double baseAverage = strategy.getAverageLevelAttained();
+			System.out.println("Report:");
+			System.out.println(strategy.getName() + " attained " + baseAverage + " with all conditions.");
+			List<Conditional> conditionsToRemove = new ArrayList<>();
+			for (Conditional condition : attainmentWithConditionsRemoved.keySet()) {
+				double withConditionRemoved = attainmentWithConditionsRemoved.get(condition);
+				System.out.println("\t" + condition + " : " + withConditionRemoved);
+				//If it performs WORSE with the condition removed, the condition is good.
+				if (baseAverage > withConditionRemoved) {
+					//Keep track of any conditions that REALLY help
+					if (baseAverage - withConditionRemoved > 3.0) {
+						goodConditions.add(new ConditionAndValues(condition, strategy.getConditionsAndValuesMap().get(condition)));
+					}
+				} else {
+					conditionsToRemove.add(condition);
+				}
+			}
+			//Remove any conditions that aren't helping
+			Map<Conditional, Map<String, Double>> conditionsAndValuesMap = strategy.getConditionsAndValuesMap();
+			for (Conditional condition : conditionsToRemove) {
+				conditionsAndValuesMap.remove(condition);
+			}
+			strategy.setConditionsAndValuesMap(conditionsAndValuesMap);
+		}
+		AdaptiveStrategy.addSuccessfulConditionsValues(goodConditions);
+		return strategies;
+	}
+	
+	public List<AdaptiveStrategy> purgeUnusedConditions (List<AdaptiveStrategy> strategies) {
+		if (measuredStrats == null) {
+			getGrittyDetailsOnConditionsOfHOF();
+		}
+		
+		Map<String, AdaptiveStrategy> strategyMap = new HashMap<>();
+		
+		
+		strategies.stream().forEach(strat -> strategyMap.put(strat.getName(), strat));
+		Set<Conditional> unusedConditions = new HashSet<>();
+		for (AdaptiveStratWithRecording record : measuredStrats) {
+			AdaptiveStrategy corresponding = strategyMap.get(record.getName());
+			int numConditionsBefore = corresponding.getConditionsAndValuesMap().keySet().size();
+			Map<Conditional, Map<String, Double>> conditionsAndValuesMap = corresponding.getConditionsAndValuesMap();
+			CountMap<Conditional> countMap = record.getCountMap();
+			Map<Conditional, Map<String, Double>> keptConditionsAndValues = new HashMap<>();
+			for (Conditional condition : conditionsAndValuesMap.keySet()) {
+				if (countMap.get(condition) != 0) {
+					keptConditionsAndValues.put(condition, conditionsAndValuesMap.get(condition));
+				} else {
+					unusedConditions.add(condition);
+				}
+			}
+			corresponding.setConditionsAndValuesMap(keptConditionsAndValues);
+			int numConditionsAfter = corresponding.getConditionsAndValuesMap().keySet().size();
+			System.out.println("Removed " + (numConditionsBefore - numConditionsAfter) 
+					+ " conditions from " + corresponding.getName());
+		}
+		SingleCondition.addUnusedConditions(unusedConditions);
+		return strategies;
+	}
+	
+	public AdaptiveStrategy findStrategyFromHOF (String name) {
+		System.out.println("Looking for " + name + "...");
+		AdaptiveStrategy theStrat = null;
+		for (AdaptiveStrategy strategy : hallOfFame.getFamers()) {
+			if (strategy.getName().equals(name)) {
+				theStrat = strategy;
+			}
+		}
+		if (theStrat == null) {
+			System.err.println("Could not find. Returning null.");
+		}
+		return theStrat;
+	}
+	
+	public void runStrategy (String name, int numTimes) {
+		System.out.println("Looking for " + name + "...");
+		AdaptiveStrategy theOne = findStrategyFromHOF(name);
+		System.out.println(theOne);
+		if (theOne != null) {
+			System.out.println("Running " + name + " " + numTimes + " times...");
+			int sum = 0;
+			for (int i = 0; i < numTimes; i++) {
+				int result = new ClimbingGame(theOne).playGame();
+				sum += result;
+				if (OUTPUT_LEVEL >= 1) {
+					System.out.println("\tLevel attained:" + result);
+				}
+			}
+			double average = (double) sum / (double) numTimes;
+			System.out.println("Average = " + average);
+		} else {
+			System.out.println("Couldn't find strategy " + name + " in famers.");
+		}
 	}
 	
 	public void run () {
 		long startTime = System.currentTimeMillis();
 		breedingMethod1();
-		//getGrittyHallOfFameData();
 		boolean breeding = true;
 		if (timesSinceImprovement >= 3 && breeding) {
 			System.out.println("Times since improvement = " + timesSinceImprovement);
@@ -120,13 +284,24 @@ public class GameRunner {
 		if (timesSinceImprovement >= 9 && breeding) {
 			breedingMethodTrueDesparation();
 		}
-		
+		superLongBreedingMethod();
 		long endTime = System.currentTimeMillis();
 		long duration = endTime - startTime;
 		writeMetadata(duration);
 		hallOfFame.close();
 		System.out.println("Whole process took: " + duration + " milliseconds.");
-		System.out.println("Optimization helped " + optimizedCount + " times.");
+		System.out.println("First cut helped: " + firstCutHelped);
+		System.out.println("Second cut helped: " + secondCutHelped);
+		System.out.println("Third cut helped: " + thirdCutHelped);
+	}
+	
+	private void superLongBreedingMethod () {
+		System.out.println("Running a super long duration breeding method.");
+		breedingMethod1();
+		breedingMethodNewBlood();
+		breedingMethod1();
+		breedingMethodTrueDesparation();
+		breedingMethod1();
 	}
 	
 	private void writeMetadata (long millis) {
@@ -160,7 +335,8 @@ public class GameRunner {
 						"Seed, Breed, Deep, Cross, Seed Helped, Breed Helped, Deep Helped, Cross Helped\n";
 				Files.write(Paths.get(METADATA_FILE), headers.getBytes(), StandardOpenOption.APPEND);
 			}
-			String helpedData = seedStratCount + ", " + breedStratCount + ", " + deepBreedStratCount + ", " + crossBreedStratCount +
+			String helpedData = seedStratCount + ", " + breedStratCount + 
+					", " + deepBreedStratCount + ", " + crossBreedStratCount +
 					", " + seedStratHelpedCount + ", " + breedStratHelpedCount + ", " + deepBreedStratHelpedCount +
 					", " + crossBreedStratHelpedCount + "\n";
 			String data = highwaterData + ", " + helpedData;
@@ -193,33 +369,33 @@ public class GameRunner {
 		
 		deepBreedStrategies(hallOfFame.getFamers(), 20);
 		crossBreedStrategies(hallOfFame.getFamers(), 2);
+		crossBreedGroups(hallOfFame.getFamers(), hallOfFame.getPotentials(), 20);
 	}
 	
 	public void breedingMethodNewBlood () {
-		System.out.println("Getting somewhat desparate... going to 2nd breeding method.");
-		List<AdaptiveStrategy> bestNewBlood = takeTopPercent(createAndRunNewStrats(1000), 0.2); //200
-		List<AdaptiveStrategy> bestBred = takeTopPercent(breedStrategies(bestNewBlood, 5), 0.2); //200
-		List<AdaptiveStrategy> bestGcs = takeTopPercent(deepBreedStrategies(bestBred, 5), 0.1); //100
-		List<AdaptiveStrategy> bestGggcs = takeTopPercent(deepBreedStrategies(bestGcs, 5), 0.1); //50
-		bestGggcs = takeTopQuantity(bestGggcs, 20);
+		System.out.println("===Getting somewhat desparate... going to 2nd breeding method.===");
+		List<AdaptiveStrategy> bestNewBlood = takeTopPercent(createAndRunNewStrats(100), 0.2); //20
+		List<AdaptiveStrategy> bestBred = takeTopPercent(breedStrategies(bestNewBlood, 5), 0.2); //20
+		List<AdaptiveStrategy> bestGcs = takeTopPercent(deepBreedStrategies(bestBred, 5), 0.2); //20
+		List<AdaptiveStrategy> bestGggcs = takeTopPercent(deepBreedStrategies(bestGcs, 5), 0.2); //20
 		List<AdaptiveStrategy> bestSomething = takeTopPercent(crossBreedStrategies(bestGggcs, 1), 0.1); //?
-		breedStrategies(bestSomething, 10);
+		List<AdaptiveStrategy> best = breedStrategies(bestSomething, 10);
+		crossBreedGroups(best, hallOfFame.getFamers(), 10);
 	}
 	
 	public void breedingMethodTrueDesparation () {
-		System.out.println("Getting truly desparate... going to 3rd breeding method (this might take a while).");
-		List<AdaptiveStrategy> bestNewBlood = takeTopPercent(createAndRunNewStrats(5000), 0.1); //500
-		List<AdaptiveStrategy> bestGgcs = takeTopPercent(deepBreedStrategies(bestNewBlood, 10), 0.1); //500
-		List<AdaptiveStrategy> bestBred = takeTopPercent(breedStrategies(bestNewBlood, 10), 0.1); //500
+		System.out.println("===Getting truly desparate... going to 3rd breeding method (this might take a while).===");
+		List<AdaptiveStrategy> bestNewBlood = takeTopPercent(createAndRunNewStrats(500), 0.1); //50
+		List<AdaptiveStrategy> bestGgcs = takeTopPercent(deepBreedStrategies(bestNewBlood, 10), 0.2); //100
+		List<AdaptiveStrategy> bestBred = takeTopPercent(breedStrategies(bestNewBlood, 10), 0.1); //50
 		
 		List<AdaptiveStrategy> best = new ArrayList<>();
-		best.addAll(takeTopPercent(bestNewBlood, 0.2)); //100
-		best.addAll(takeTopPercent(bestGgcs, 0.2)); //200
-		best.addAll(takeTopPercent(bestBred, 0.2)); //300
+		best.addAll(takeTopPercent(bestNewBlood, 0.5)); //25
+		best.addAll(takeTopPercent(bestGgcs, 0.5)); //50
+		best.addAll(takeTopPercent(bestBred, 0.5)); //25
 		
-		best = takeTopPercent(best, 0.5); //150
-		breedStrategies(best, 4);
-		crossBreedStrategies(takeTopPercent(best, 0.1), 2);
+		best = takeTopPercent(best, 0.5); //50
+		crossBreedGroups(best, hallOfFame.getFamers(), 30);
 	}
 
 	/* This method takes the Hall of Fame strategies, runs them 5000 times each,
@@ -275,7 +451,7 @@ public class GameRunner {
 	 */
 	public void testVariability2 () {
 		Map<Integer, Double> runCountToDifferenceMap = new HashMap<>();
-		for (int runCount = 5; runCount < 150; runCount += 5) { //<- this is dead code because of the AssertionError
+		for (int runCount = 5; runCount < 150; runCount += 5) {
 			List<AdaptiveStrategy> strategies = new ArrayList<>();
 			for (int i = 0; i < 1000; i++) {
 				strategies.add(new AdaptiveStrategy(new Hero()));
@@ -298,10 +474,6 @@ public class GameRunner {
 			System.out.println("Run count = " + runCount);
 			System.out.println("Average difference = " + totalDifference / 1000.0);
 			runCountToDifferenceMap.put(runCount, totalDifference / 1000.0);
-			//strategyToLevelsAttainedMap = new HashMap<>();
-			if (true) {
-				throw new AssertionError("fix commented out code");
-			}
 		}
 		System.out.println("===");
 		for (Integer runCount : runCountToDifferenceMap.keySet()) {
@@ -315,15 +487,57 @@ public class GameRunner {
 		System.out.println("Finished running tests.");
 	}
 	
+	public void testHallOfFame500Variability () {
+		System.out.println("Running 500 variability...");
+		testStrategysVariabilityOverNRuns(hallOfFame.getFamers().get(0), 1000);
+		System.out.println("Finished.");
+	}
+	
+	public void testStrategysVariabilityOverNRuns (AdaptiveStrategy strategy, int numRuns) {
+		long start = System.currentTimeMillis();
+		System.out.println("Running variability tests with " + numRuns + " runcount for " + strategy.getName());
+		List<Double> attainmentAverageList = new ArrayList<>();
+		for (int i = 0; i < 100; i++) {
+			int sum = 0;
+			for (int j = 0; j < numRuns; j++) {
+				sum += new ClimbingGame(strategy).playGame();
+			}
+			double average = (double) sum / (double) numRuns;
+			attainmentAverageList.add(average);
+		}
+		
+		double lowestAverage = 10000000.0;
+		double highestAverage = 0.0;
+		double sum = 0.0;
+		
+		for (Double d : attainmentAverageList) {
+			sum += d;
+			if (d > highestAverage) {
+				highestAverage = d;
+			}
+			if (d < lowestAverage) {
+				lowestAverage = d;
+			}
+		}
+		double averageAverage = sum / 100.0;
+		long end = System.currentTimeMillis();
+		System.out.println("Process completed in " + (end - start) + " milliseconds.");
+		System.out.println("Ran 100 separate trials of " + strategy.getName() + " " + numRuns + " times each.");
+		System.out.println("Highest: " + highestAverage);
+		System.out.println("Lowest:" + lowestAverage);
+		System.out.println("Range: " + (highestAverage - lowestAverage));
+		System.out.println("Average: " + averageAverage);
+	}
+	
 	//Method to test the variability of a specific strategy
 	public void testStrategysVariability (AdaptiveStrategy strategy) {
 		System.out.println("Running variability tests for strategy " + strategy.getName());
-		String VARIABILITY_DIRECTORY = "data/variability2/"; 
+		String VARIABILITY_DIRECTORY = "data/variability1/"; 
 		new File(VARIABILITY_DIRECTORY).mkdirs();
 		Map<Integer, Double> runCountToDifferenceMap = new HashMap<>();
 		for (int runCount = 5; runCount < 150; runCount+= 5) {
 			double differenceSum = 0.0;
-			int rerunCount = 30;
+			int rerunCount = 1;
 			for (int j = 0; j < rerunCount; j++) {
 				int sum = 0;
 				for (int i = 0; i < runCount; i++) {
@@ -380,7 +594,8 @@ public class GameRunner {
 	
 	//Set to 0.0 to turn optimization off
 	public static double PERCENT_NEEDED_FOR_OPTIMIZATION = 0.7;
-	public void runStrategies (List<AdaptiveStrategy> strategies, int numTimes) {
+	//This method doesn't work reliably
+	public void runStrategiesMultiThread (List<AdaptiveStrategy> strategies, int numTimes) {
 		threadService = Executors.newCachedThreadPool();
 		for (AdaptiveStrategy strategy : strategies) {
 			threadService.submit(() -> {
@@ -388,8 +603,8 @@ public class GameRunner {
 					int sum = 0;
 					for (int i = 0; i < 100; i++) {
 						int result = new ClimbingGame(strategy).playGame();
-						sum += result;
 						strategy.addAttainment(result);
+						sum += result;
 					}
 					double needed = hallOfFame.getPotentialsMinAttainmentNeeded();
 					double average = (double) sum / 100.0;
@@ -422,26 +637,69 @@ public class GameRunner {
 		calcAverageAttainment(strategies);
 	}
 	
-	public void runStrategiesSingleThread (List<AdaptiveStrategy> strategies, int numTimes) {
-		for (AdaptiveStrategy strategy: strategies) {
-			for (int i = 0; i < numTimes; i++) {
-				int result = new ClimbingGame(strategy).playGame();
-				strategy.addAttainment(result);
+	public static final double FIRST_CUT_PERCENT = 0.65;
+	public static final int FIRST_CUT_NUM_RUNS = 20;
+	public static final double SECOND_CUT_PERCENT = 0.75;
+	public static final int SECOND_CUT_NUM_RUNS = 50;
+	public static final double THIRD_CUT_PERCENT = 0.85;
+	public static final int THIRD_CUT_NUM_RUNS = 100;
+	
+	private int firstCutHelped = 0;
+	private int secondCutHelped = 0;
+	private int thirdCutHelped = 0;
+	
+	public void runStrategies (List<AdaptiveStrategy> strategies, int numTimes) {
+		//TODO This should probably be re-written to use recursion
+		for (AdaptiveStrategy strategy : strategies) {
+			if (numTimes >= THIRD_CUT_NUM_RUNS) {
+				int sum = 0;
+				int i = 0;
+				for (; i < FIRST_CUT_NUM_RUNS; i++) {
+					int result = new ClimbingGame(strategy).playGame();
+					strategy.addAttainment(result);
+					sum += result;
+				}
+				double average = (double) sum / (double) FIRST_CUT_NUM_RUNS;
+				double needed = hallOfFame.getPotentialsMinAttainmentNeeded();
+				if (average > needed * FIRST_CUT_PERCENT) {
+					for (; i < SECOND_CUT_NUM_RUNS; i++) {
+						int result = new ClimbingGame(strategy).playGame();
+						strategy.addAttainment(result);
+						sum += result;
+					}
+					average = (double) sum / (double) SECOND_CUT_NUM_RUNS;
+					if (average > needed * SECOND_CUT_PERCENT) {
+						for (; i < THIRD_CUT_NUM_RUNS; i++) {
+							int result = new ClimbingGame(strategy).playGame();
+							strategy.addAttainment(result);
+							sum += result;
+						}
+						average = (double) sum / (double) THIRD_CUT_NUM_RUNS;
+						if (average > needed * THIRD_CUT_NUM_RUNS) {
+							for (; i < numTimes; i++) {
+								int result = new ClimbingGame(strategy).playGame();
+								strategy.addAttainment(result);
+							}
+						} else {
+							thirdCutHelped++;
+						}
+					} else {
+						secondCutHelped++;
+					}
+				} else {
+					firstCutHelped++;
+				}
+			} else {
+				for (int i = 0; i < numTimes; i++) {
+					int result = new ClimbingGame(strategy).playGame();
+					strategy.addAttainment(result);
+				}
 			}
 		}
 		
 		calcAverageAttainment(strategies);
 	}
-	
-	public List<AdaptiveStrategy> createAndRunSmallBatch () {
-		System.out.println("Creating and running 40 strategies 10 times each.");
-		List<AdaptiveStrategy> newStrats = new ArrayList<>();
-		for (int i = 0; i < 100; i++) {
-			newStrats.add(new AdaptiveStrategy(new Hero()));
-		}
-		runStrategies(newStrats, 10);
-		return newStrats;
-	}
+
 	
 	//Create 500 new strategies and run them 500 times each	
 	public List<AdaptiveStrategy> createAndRunNewStrats (int numStrategies) {
@@ -533,6 +791,43 @@ public class GameRunner {
 		return children;
 	}
 	
+	public List<AdaptiveStrategy> crossBreedGroups 
+		(List<AdaptiveStrategy> first, List<AdaptiveStrategy> second, int numChildren) {
+		System.out.println("Received two groups of strategies, with " + first.size() 
+			+ " and " + second.size() + " strategies apiece.");
+		System.out.println("Cross-breeding these groups.");
+		List<AdaptiveStrategy> children = new ArrayList<>();
+		List<AdaptiveStrategy> smaller;
+		List<AdaptiveStrategy> larger;
+		Random r = new Random();
+		if (first.size() == 0 || second.size() == 0) {
+			System.out.println("One of the lists is empty though. Aborting.");
+			return null;
+		}
+		if (first.size() > second.size()) {
+			larger = first;
+			smaller = second;
+		} else {
+			larger = second;
+			smaller = first;
+		}
+		System.out.println("Each strategy in the smaller group will have " + numChildren 
+				+ " children randomly with the larger group.");
+		System.out.println("This will produce " + smaller.size() * numChildren + " strategies.");
+		for (int i = 0; i < numChildren; i++) {
+			for (AdaptiveStrategy dad : smaller) {
+				AdaptiveStrategy mom = larger.get(r.nextInt(larger.size() - 1));
+				children.add(new AdaptiveStrategy(dad, mom));
+			}
+		}
+		runStrategies(children, 500);
+		Collections.sort(children);
+		System.out.println("highest attainment = " + children.get(0).averageLevelAttained);
+		crossBreedStratCount += children.size();
+		crossBreedStratHelpedCount += hallOfFame.addPotentialMembers(children);
+		return children;
+	}
+	
 	public static List<AdaptiveStrategy> takeTopPercent (List<AdaptiveStrategy> strategies, double percentToKeep) {
 		Collections.sort(strategies);
 		List<AdaptiveStrategy> best = new ArrayList<>();
@@ -546,6 +841,9 @@ public class GameRunner {
 	}
 	
 	public static List<AdaptiveStrategy> takeTopQuantity (List<AdaptiveStrategy> strategies, int quantity) {
+		if (strategies.size() < quantity) {
+			return strategies;
+		}
 		Collections.sort(strategies);
 		List<AdaptiveStrategy> best = new ArrayList<>();
 		int index = 0;
@@ -554,5 +852,16 @@ public class GameRunner {
 			index++;
 		}
 		return best;
+	}
+	
+	public static List<AdaptiveStrategy> takeTop (List<AdaptiveStrategy> strategies, Number number) {
+		if (number instanceof Double) {
+			return takeTopPercent(strategies, (Double) number);
+		} else if (number instanceof Integer) {
+			return takeTopQuantity(strategies, (Integer) number);
+		} else {
+			System.err.println("takeTop() called without a Double or Integer");
+			return null;
+		}
 	}
 }
